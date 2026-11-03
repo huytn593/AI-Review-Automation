@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Review Factory</title>
+<style>
+body{font:16px system-ui;background:#101a2b;color:#edf2ff;max-width:920px;margin:3rem auto;padding:0 1rem}
+section{background:#192841;padding:1.2rem;margin:1rem 0;border-radius:12px}
+button,input,select,textarea{font:inherit;padding:.6rem;margin:.3rem 0}
+textarea{box-sizing:border-box;width:100%;min-height:15rem} video{max-height:65vh;max-width:100%}
+a{color:#a9d8ff;margin-right:.8rem} pre{white-space:pre-wrap}
+</style>
+<h1>AI Review Factory</h1>
+<section><h2>Chủ đề</h2><form id="create"><input name="topic" required maxlength="100" placeholder="Tên công cụ"><select name="format"><option value="short">Shorts</option><option value="long">Video dài</option></select><button>Tạo dự án</button></form>
+<label>Dự án <select id="jobs"></select></label></section>
+<section id="studio" hidden><h2>Nguồn và storyboard</h2>
+<p>Nhập bằng chứng đã đối chiếu. Chỉ mục citations bắt đầu từ 1. Bản dựng sẽ báo thiếu demo thực tế.</p>
+<textarea id="editor" aria-label="JSON nguồn và storyboard"></textarea><br>
+<button id="save">Lưu kịch bản</button> <button id="draft">Tạo nháp Ollama</button> <button id="render">Dựng video</button>
+<h2>Preview và QC</h2><pre id="status"></pre><video id="video" controls hidden></video><p id="files"></p>
+<label><input id="reviewed" type="checkbox"> Tôi đã xem bản dựng, rà soát dữ kiện và quyền sử dụng</label>
+<button id="approve" disabled>Duyệt bản dựng</button></section><p id="error" role="alert"></p>
+<script>
+const el=id=>document.getElementById(id);
+async function api(path,method='GET',data){
+  const response=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const value=await response.json();
+  if(!response.ok) throw Error(JSON.stringify(value.detail));
+  return value;
+}
+let previewId;
+function display(job){
+  previewId=job.render_id;
+  el('studio').hidden=false;
+  const {sources,scenes,synthetic_disclosure_reviewed=false}=job;
+  el('editor').value=JSON.stringify({sources,scenes,synthetic_disclosure_reviewed},null,2);
+  el('status').textContent=[job.state,job.verification,...(job.issues||[])].join('\n');
+  el('video').hidden=!job.render_id;
+  el('files').replaceChildren();
+  el('reviewed').checked=false;
+  el('approve').disabled=job.state!=='AWAITING_APPROVAL';
+  const root='/jobs/'+job.id+'/artifacts/';
+  el('video').removeAttribute('src');
+  if(job.render_id){
+    el('video').src=root+'video.mp4?v='+job.render_id;
+    for(const name of ['thumbnail.jpg','subtitles.srt','timeline.json','research.json','manifest.json','metadata.json']){
+      const link=document.createElement('a');link.href=root+name;link.textContent=name;el('files').append(link);
+    }
+  }
+  el('video').load();
+}
+async function refresh(id){
+  const jobs=await api('/jobs');
+  el('jobs').replaceChildren(...jobs.map(job=>new Option(job.topic+' · '+job.format,job.id)));
+  if(id) el('jobs').value=id;
+  if(el('jobs').value) display(jobs.find(job=>job.id===el('jobs').value));
+}
+const path=()=>'/jobs/'+el('jobs').value;
+function action(handler){
+  return async event=>{
+    event?.preventDefault();el('error').textContent='';
+    const controls=[...document.querySelectorAll('button,textarea')];
+    controls.filter(control=>control.id!=='approve').forEach(control=>control.disabled=true);
+    try{await handler(event);}catch(error){el('error').textContent=error.message;}
+    finally{controls.filter(control=>control.id!=='approve').forEach(control=>control.disabled=false);}
+  };
+}
+el('create').onsubmit=action(async event=>refresh((await api('/jobs','POST',Object.fromEntries(new FormData(event.target)))).id));
+el('jobs').onchange=action(async()=>display(await api(path())));
+el('save').onclick=action(async()=>display(await api(path()+'/editorial','PUT',JSON.parse(el('editor').value))));
+el('draft').onclick=action(async()=>{el('editor').value=JSON.stringify(await api(path()+'/draft','POST'),null,2);});
+el('render').onclick=action(async()=>{el('status').textContent='Đang dựng kịch bản đã lưu…';display(await api(path()+'/render','POST'));});
+el('approve').onclick=action(async()=>{if(!el('reviewed').checked)throw Error('Cần xác nhận đã xem và rà soát');display(await api(path()+'/approve','POST',{render_id:previewId,preview_reviewed:true,facts_reviewed:true,rights_reviewed:true}));});
+refresh().catch(error=>el('error').textContent=error.message);
+</script></html>
