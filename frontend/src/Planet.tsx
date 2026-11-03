@@ -106,6 +106,8 @@ export default function Planet({paused}:{paused:boolean}) {
       camera.position.y+=(pointerY*.34-camera.position.y)*Math.min(1,dt*5)
       camera.lookAt(0,0,0)
       renderer.render(scene,camera)
+      canvas.dataset.cameraX=camera.position.x.toFixed(3)
+      canvas.dataset.cameraY=camera.position.y.toFixed(3)
       dirty=false
     }
     function move(event:PointerEvent){
