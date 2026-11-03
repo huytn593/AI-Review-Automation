@@ -40,3 +40,7 @@ nav a[aria-current=page]{background:#70d7c41c;color:var(--accent)}
 @media(max-width:900px){.hero{grid-template-columns:1fr}.planet-stage{height:340px}}
 .hero{background:radial-gradient(ellipse at 78% 73%,#164235 0,transparent 53%),radial-gradient(ellipse at 91% 15%,#102c31 0,transparent 48%),#060e14}
 .hero-copy{background:linear-gradient(150deg,#1b362dc7,#0b1a20ef);border-color:#9ee4cc4d;backdrop-filter:blur(12px)}
+.hero-copy{box-shadow:inset 0 1px 24px #93f0ce16,0 24px 80px #0006}
+.hero .cta{background:linear-gradient(120deg,#a5f5d6,#52ba98);box-shadow:0 0 24px #54c7a448;border:1px solid #b9ffe3a1}
+.hero .cta:hover{box-shadow:0 0 30px #54c7a481}
+nav{background:linear-gradient(165deg,#0d1b1d,#071412 70%,#102c25)}

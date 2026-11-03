@@ -46,13 +46,18 @@ export default function Planet({paused}:{paused:boolean}) {
         void main(){
           vec3 p=localPoint*3.2;
           float terrain=.57*noise(p)+.28*noise(p*2.4)+.15*noise(p*5.6);
-          float land=smoothstep(.42,.66,terrain);
+          float land=smoothstep(.43,.60,terrain);
+          float clouds=smoothstep(.50,.76,noise(p*1.7+vec3(6.,2.,1.))*.68+noise(p*5.)*.32);
+          float detail=noise(p*15.);
           vec3 n=normalize(normalWorld);
-          float daylight=max(dot(n,normalize(vec3(-.5,.8,.45))),0.0);
+          float incidence=dot(n,normalize(vec3(-.55,.75,.43)));
+          float daylight=smoothstep(-.18,.86,incidence);
           float rim=pow(1.0-max(dot(n,normalize(cameraPosition-worldPoint)),0.0),3.3);
-          vec3 surface=mix(vec3(.012,.057,.061),vec3(.14,.48,.36),land);
+          vec3 surface=mix(vec3(.012,.057,.061),vec3(.13,.48,.32)*(.68+detail*.65),land);
           float veins=pow(1.0-abs(sin(terrain*32.0)),12.0);
           vec3 color=surface*(.22+daylight*1.15)+vec3(.12,.53,.40)*rim*(.22+daylight)+vec3(.11,.24,.19)*veins*land*daylight;
+          color+=vec3(.27,.52,.44)*clouds*daylight*.34;
+          color+=vec3(.48,.34,.13)*smoothstep(.82,.98,detail)*land*(1.-daylight)*.26;
           gl_FragColor=vec4(color,1.0);
         }`,
     })
@@ -106,9 +111,9 @@ export default function Planet({paused}:{paused:boolean}) {
       const dt=Math.min(elapsed,45)/1000
       globe.rotation.y+=dt*.19
       sceneTime+=dt
-      botanicals.update(sceneTime)
       camera.position.x+=(pointerX*.5-camera.position.x)*Math.min(1,dt*5)
       camera.position.y+=(pointerY*.34-camera.position.y)*Math.min(1,dt*5)
+      botanicals.update(sceneTime,camera.position.x/.5,camera.position.y/.34)
       camera.lookAt(0,0,0)
       renderer.render(scene,camera)
       canvas.dataset.cameraX=camera.position.x.toFixed(3)
