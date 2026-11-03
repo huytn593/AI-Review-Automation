@@ -1,0 +1,62 @@
+# AI Review Automation
+
+MVP local dành cho một biên tập viên. Nhập chủ đề, lưu nguồn và storyboard, dựng preview, xem kết quả QC và duyệt thủ công. Các thao tác biên tập và trạng thái được lưu trong SQLite WAL. Mỗi lượt dựng có thư mục riêng.
+
+## Chạy trên máy cá nhân
+
+Cần Python 3.11+, FFmpeg có libass/libx264, ffprobe và eSpeak NG có giọng vi. Dùng font DejaVu Sans hoặc font hệ thống hỗ trợ tiếng Việt. Trên Windows thêm thư mục executable vào PATH hoặc đặt đường dẫn eSpeak NG bằng ESPEAK_BIN.
+
+```sh
+python -m venv .venv
+# Linux/macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn factory.app:app --host 127.0.0.1 --port 8000
+```
+
+Mở http://127.0.0.1:8000. Chạy một worker. Cấu hình tùy chọn qua .env dựa trên .env.example. Dùng FACTORY_VOICE=mock cho kiểm thử dựng offline. Audio mock là im lặng và bị chặn tại QC.
+
+## Từ chủ đề đến MP4
+
+1. Tạo dự án và chọn Shorts hoặc video dài. Trong trình biên tập JSON, thêm từng nguồn với `url`, `title`, `checked_at` (ISO 8601), `claim`, `evidence` và tùy chọn `published_at`. Đối chiếu từng claim với trích dẫn. Chỉ mục nguồn bắt đầu từ 1.
+2. Sửa từng cảnh có `narration`, `caption`, `seconds`, `citations` và `visual_type`. Với giọng thật, renderer dùng thời lượng audio đo bằng ffprobe. Có thể lưu trước nguồn và gọi **Tạo nháp Ollama** khi đã đặt OLLAMA_MODEL. Đọc và lưu nháp đã sửa trước khi dựng.
+3. Với demo thực tế, cài thêm Playwright và Chromium. Chỉ ghi hình trên công cụ được phép ghi và dùng thương mại. Phiên đăng nhập ban đầu không ghi hình. Dừng nếu gặp chặn truy cập.
+
+```sh
+python -m pip install playwright
+python -m playwright install chromium
+python -m factory.capture JOB_UUID https://example.com
+```
+
+4. Mở http://127.0.0.1:8000/docs và gửi PUT `/jobs/{job}/verification` với `scenario`, `result`, `recording_source`, `commercial_rights: true` sau khi xem recording.webm. Dùng `visual_type: "demo"` ở cảnh phù hợp. Video hiện dùng cùng điểm bắt đầu của clip ở mọi cảnh demo. Dự án thiếu demo vẫn có thể dựng preview và sẽ bị QC chặn.
+5. Dựng và xem preview. Bản dựng xuất MP4, thumbnail, SRT, timeline, báo cáo nguồn, manifest và metadata private. Kiểm tra nội dung và xác nhận duyệt trong UI. Mọi chỉnh sửa storyboard hoặc bằng chứng làm mất hiệu lực duyệt trước đó. Bản đã duyệt có thể chuyển thủ công sang YouTube Studio để tiếp tục quy trình xuất bản.
+
+## Kiểm thử và giới hạn
+
+```sh
+python -m pytest -q
+```
+
+Test dựng dùng FFmpeg thật và âm thanh mock. Tệp nguồn trong test là fixture, không đại diện cho kiểm chứng Ollama thực tế. Nhánh dựng hiện chạy đồng bộ và giới hạn một video tại một thời điểm. Nếu tiến trình chết giữa chừng, dừng server trước khi dùng SQLite đưa job kẹt từ RENDERING về FAILED rồi dựng lại. Nguồn và storyboard đã lưu vẫn dùng được. Thư mục workspace lưu bản dựng cũ và cần được quản lý dung lượng thủ công.
+
+QC hiện kiểm tra cấu trúc trích dẫn, khoảng thời lượng, demo/quyền đã xác nhận, voice mock và trạng thái rà soát disclosure. Biên tập viên chịu trách nhiệm đối chiếu claim và kiểm tra clip trước khi xác nhận. Chưa có detector clipping, silence, nội dung trùng lặp theo ngữ nghĩa hoặc đánh giá license độc lập.
+
+## Milestone tiếp theo
+
+- Thu thập RSS/search API, chuẩn hóa provenance và xếp hạng Top 20 dựa trên tín hiệu có thật.
+- Thêm worker có lease, resume theo cảnh, cancel và retry theo loại lỗi. Bổ sung adapter TTS và OpenAI/Anthropic, kiểm thử có credentials.
+- Thêm QC kỹ thuật và kiểm tra quyền theo từng asset, rồi kiểm thử video dài và demo sản phẩm thực tế.
+- Thêm OAuth, upload private có idempotency, lịch đăng gắn với bản đã duyệt, analytics và affiliate disclosure.
+
+## M0 trên Windows
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+powershell -NoProfile -File .\scripts\Start-Factory.ps1
+```
+
+Mở dashboard ở http://127.0.0.1:8000 và kiểm tra http://127.0.0.1:8000/health.
+Health trả phiên bản schema, SQLite journal mode và các executable tìm thấy trên PATH.
+Việc tìm thấy NVIDIA hoặc Ollama trên PATH chưa xác nhận encoder hoặc model chạy được.
+Dùng POST /jobs/{job}/cancel để hủy job trước khi render hoặc sau khi render lỗi.
