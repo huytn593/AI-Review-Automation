@@ -60,3 +60,19 @@ Mở dashboard ở http://127.0.0.1:8000 và kiểm tra http://127.0.0.1:8000/he
 Health trả phiên bản schema, SQLite journal mode và các executable tìm thấy trên PATH.
 Việc tìm thấy NVIDIA hoặc Ollama trên PATH chưa xác nhận encoder hoặc model chạy được.
 Dùng POST /jobs/{job}/cancel để hủy job trước khi render hoặc sau khi render lỗi.
+
+## M1 smoke test trên Windows
+
+```powershell
+powershell -NoProfile -File .\scripts\Setup-Factory.ps1 -EdgeTts
+$env:FACTORY_TTS = "edge"
+$env:FACTORY_VOICE = "vi-VN-HoaiMyNeural"
+.\.venv\Scripts\python.exe -m factory.smoke ".\workspace\M1 tiếng Việt"
+.\.venv\Scripts\python.exe -m pytest -q
+powershell -NoProfile -File .\scripts\Start-Factory.ps1
+```
+
+Edge TTS cần kết nối mạng. Với eSpeak NG đã cài, đặt FACTORY_TTS=espeak và FACTORY_VOICE=vi.
+Smoke test yêu cầu thư mục đích mới và ghi video.mp4, subtitles.srt, thumbnail.jpg và technical.json.
+FACTORY_ENCODER=cpu buộc dùng libx264. Mặc định renderer thử mã hóa NVENC trước.
+API cancel chờ đến checkpoint tiếp theo, tối đa đến khi lệnh con hiện tại hoàn tất hoặc timeout.

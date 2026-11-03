@@ -117,11 +117,11 @@ def cancel(job: UUID):
     with closing(connect()) as db, db:
         db.execute("BEGIN IMMEDIATE")
         current = read(db, job)
-        if current["state"] == "CANCELLED":
+        if current["state"] in {"CANCELLED", "CANCELLING"}:
             return current
-        if current["state"] not in {"DISCOVERED", "SCRIPT_READY", "FAILED", "QC_FAILED"}:
+        if current["state"] not in {"RENDERING", "DISCOVERED", "SCRIPT_READY", "FAILED", "QC_FAILED"}:
             raise HTTPException(409, "Không thể hủy ở trạng thái hiện tại")
-        write(db, job, "CANCELLED", current)
+        write(db, job, "CANCELLING" if current["state"] == "RENDERING" else "CANCELLED", current)
     return get(job)
 
 
@@ -164,7 +164,7 @@ def edit(job: UUID, editorial: Editorial):
     with closing(connect()) as db, db:
         db.execute("BEGIN IMMEDIATE")
         current = read(db, job)
-        if current["state"] in {"RENDERING", "CANCELLED"}:
+        if current["state"] in {"RENDERING", "CANCELLING", "CANCELLED"}:
             raise HTTPException(409, "Dự án đang dựng hoặc đã hủy")
         data = {key: current[key] for key in ("topic", "format", "verification", "demo") if key in current}
         data.update(editorial.model_dump(mode="json"))
@@ -194,7 +194,7 @@ def verify(job: UUID, verification: Verification):
     with closing(connect()) as db, db:
         db.execute("BEGIN IMMEDIATE")
         current = read(db, job)
-        if current["state"] in {"RENDERING", "CANCELLED"}:
+        if current["state"] in {"RENDERING", "CANCELLING", "CANCELLED"}:
             raise HTTPException(409, "Dự án đang dựng hoặc đã hủy")
         demo_id = str(uuid4())
         shutil.copyfile(recording, recording.with_name(f"{demo_id}.webm"))
@@ -213,19 +213,23 @@ def render_job(job: UUID):
         current = read(db, job)
         if current["state"] not in {"SCRIPT_READY", "FAILED", "QC_FAILED"}:
             raise HTTPException(409, "Cần lưu kịch bản trước khi dựng")
-        if db.execute("SELECT 1 FROM jobs WHERE state='RENDERING'").fetchone():
+        if db.execute("SELECT 1 FROM jobs WHERE state IN ('RENDERING','CANCELLING')").fetchone():
             raise HTTPException(409, "Máy đang dựng một video khác")
         current.pop("render_id", None)
         write(db, job, "RENDERING", current)
     render_id = str(uuid4())
     folder = ROOT / str(job) / render_id
-    voice = os.getenv("FACTORY_VOICE", "vi")
+    voice = os.getenv("FACTORY_VOICE", "vi-VN-HoaiMyNeural" if os.getenv("FACTORY_TTS") == "edge" else "vi")
     try:
         folder.mkdir(parents=True)
         scenes = [Scene.model_validate(scene) for scene in current["scenes"]]
         demo = current.get("demo")
         demo_path = folder.parent / demo["file"] if demo else None
-        duration = render(folder, scenes, current["format"], voice, demo_path)
+        def checkpoint():
+            if get(job)["state"] == "CANCELLING":
+                raise RuntimeError("Render cancelled")
+
+        duration = render(folder, scenes, current["format"], voice, demo_path, checkpoint)
         manifest = {"visuals": "original_text_cards", "music": None,
                     "voice": voice, "verification": current["verification"], "demo": demo}
         for name, data in {
@@ -235,14 +239,24 @@ def render_job(job: UUID):
         }.items():
             (folder / f"{name}.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         issues = quality_issues(current, scenes, duration, voice)
+        technical = json.loads((folder / "technical.json").read_text(encoding="utf-8"))
+        if technical["mostly_silent"]:
+            issues.append("Audio gần như im lặng")
+        current["technical"] = technical
         current.update(render_id=render_id, duration=duration, issues=issues)
         state = "QC_FAILED" if issues else "AWAITING_APPROVAL"
     except Exception as exc:
         import logging
         logging.getLogger(__name__).exception("Render failed for %s", job)
-        current["issues"] = [f"Lỗi dựng video ({type(exc).__name__})"]
+        shutil.rmtree(folder, ignore_errors=True)
+        current["issues"] = [f"Lỗi dựng video ({type(exc).__name__}): {exc}"]
         state = "FAILED"
     with closing(connect()) as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        if read(db, job)["state"] == "CANCELLING":
+            shutil.rmtree(folder, ignore_errors=True)
+            current.pop("render_id", None)
+            state = "CANCELLED"
         write(db, job, state, current)
     return get(job)
 

@@ -82,3 +82,43 @@ def test_migrate_unversioned_database(tmp_path):
         migrate(db)
         assert db.execute("PRAGMA user_version").fetchone() == (1,)
         assert db.execute("SELECT id,state FROM jobs").fetchone() == ("existing", "DISCOVERED")
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg") or not shutil.which("ffprobe"),
+                    reason="FFmpeg tools required")
+def test_three_scene_renderer_with_audio(tmp_path, monkeypatch):
+    import json
+    import sys
+
+    from factory.media import render
+
+    # Generate a non-silent audio fixture through FFmpeg. This is a test tone,
+    # so the result verifies muxing and timing without claiming voice quality.
+    adapter = tmp_path / "fixture_tts.py"
+    adapter.write_text(
+        "import subprocess,sys\n"
+        "subprocess.run(['ffmpeg','-v','error','-y','-f','lavfi','-i',"
+        "'sine=frequency=440:duration=11',sys.argv[4]],check=True)\n",
+        encoding="utf-8",
+    )
+    from factory import media
+    original_run = media.run
+
+    def fixture_run(*args, **kwargs):
+        if args[0] == "fixture-tts":
+            return original_run(sys.executable, str(adapter), *args[1:], **kwargs)
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setenv("ESPEAK_BIN", "fixture-tts")
+    monkeypatch.setattr(media, "run", fixture_run)
+    scenes = [factory.Scene(narration=caption, caption=caption) for caption in
+              ("Mở đầu", "Giải thích", "Kết luận")]
+    assert render(tmp_path, scenes, "short", "vi") == pytest.approx(33)
+    probe = json.loads(run("ffprobe", "-v", "error", "-show_streams",
+                           "-show_format", "-of", "json", str(tmp_path / "video.mp4")))
+    video, audio = probe["streams"]
+    assert (video["codec_name"], video["width"], video["height"]) == ("h264", 1080, 1920)
+    assert audio["codec_name"] == "aac"
+    assert float(probe["format"]["duration"]) == pytest.approx(33, abs=0.25)
+    assert (tmp_path / "thumbnail.jpg").stat().st_size > 0
+    assert "Kết luận" in (tmp_path / "subtitles.srt").read_text(encoding="utf-8")
