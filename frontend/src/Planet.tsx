@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react'
 import * as THREE from 'three'
+import {botanicalEnvironment} from './BotanicalEnvironment'
 
 export default function Planet({paused}:{paused:boolean}) {
   const host=useRef<HTMLDivElement>(null)
@@ -68,6 +69,8 @@ export default function Planet({paused}:{paused:boolean}) {
     stars.setAttribute('position',new THREE.BufferAttribute(positions,3))
     const starMaterial=new THREE.PointsMaterial({color:0x9ce5ce,size:.025,transparent:true,opacity:.55})
     scene.add(new THREE.Points(stars,starMaterial))
+    const botanicals=botanicalEnvironment(scene)
+    let sceneTime=0
     const canvas=renderer.domElement
     canvas.setAttribute('aria-hidden','true')
     element.append(canvas)
@@ -102,6 +105,8 @@ export default function Planet({paused}:{paused:boolean}) {
       if(slowFrames===30&&renderer.getPixelRatio()>1){renderer.setPixelRatio(1);resize()}
       const dt=Math.min(elapsed,45)/1000
       globe.rotation.y+=dt*.19
+      sceneTime+=dt
+      botanicals.update(sceneTime)
       camera.position.x+=(pointerX*.5-camera.position.x)*Math.min(1,dt*5)
       camera.position.y+=(pointerY*.34-camera.position.y)*Math.min(1,dt*5)
       camera.lookAt(0,0,0)
@@ -132,6 +137,7 @@ export default function Planet({paused}:{paused:boolean}) {
       canvas.removeEventListener('webglcontextlost',lose)
       canvas.removeEventListener('webglcontextrestored',restore)
       geometry.dispose();material.dispose();stars.dispose();starMaterial.dispose()
+      botanicals.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
       canvas.remove()

@@ -38,3 +38,5 @@ nav a[aria-current=page]{background:#70d7c41c;color:var(--accent)}
 .planet-fallback:before{content:"";position:absolute;inset:12% auto auto 50%;transform:translateX(-50%);width:min(72%,400px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 33% 20%,#72a892,#1d5348 43%,#091b20 77%);box-shadow:0 0 54px #4bca9a39}
 .planet-fallback canvas{visibility:hidden}
 @media(max-width:900px){.hero{grid-template-columns:1fr}.planet-stage{height:340px}}
+.hero{background:radial-gradient(ellipse at 78% 73%,#164235 0,transparent 53%),radial-gradient(ellipse at 91% 15%,#102c31 0,transparent 48%),#060e14}
+.hero-copy{background:linear-gradient(150deg,#1b362dc7,#0b1a20ef);border-color:#9ee4cc4d;backdrop-filter:blur(12px)}
