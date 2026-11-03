@@ -86,8 +86,12 @@ def test_migrate_unversioned_database(tmp_path):
 
 @pytest.mark.skipif(not shutil.which("ffmpeg") or not shutil.which("ffprobe"),
                     reason="FFmpeg tools required")
-def test_three_scene_renderer_with_audio(tmp_path, monkeypatch):
+@pytest.mark.parametrize("format_name,width,height", [("short", 1080, 1920), ("long", 1920, 1080)])
+def test_three_scene_renderer_with_audio(tmp_path, monkeypatch, format_name, width, height):
+    tmp_path = tmp_path / "Giọng đọc Việt"
+    tmp_path.mkdir()
     import json
+    import subprocess
     import sys
 
     from factory.media import render
@@ -105,20 +109,120 @@ def test_three_scene_renderer_with_audio(tmp_path, monkeypatch):
     original_run = media.run
 
     def fixture_run(*args, **kwargs):
+        if format_name == "long" and "h264_nvenc" in args:
+            if args[-1] == "-":
+                return ""
+            raise subprocess.CalledProcessError(
+                1, args, stderr="[h264_nvenc @ 1] OpenEncodeSessionEx failed"
+            )
         if args[0] == "fixture-tts":
             return original_run(sys.executable, str(adapter), *args[1:], **kwargs)
         return original_run(*args, **kwargs)
 
+    monkeypatch.setenv("FACTORY_ENCODER", "auto")
     monkeypatch.setenv("ESPEAK_BIN", "fixture-tts")
     monkeypatch.setattr(media, "run", fixture_run)
     scenes = [factory.Scene(narration=caption, caption=caption) for caption in
               ("Mở đầu", "Giải thích", "Kết luận")]
-    assert render(tmp_path, scenes, "short", "vi") == pytest.approx(33)
+    assert render(tmp_path, scenes, format_name, "vi") == pytest.approx(33)
     probe = json.loads(run("ffprobe", "-v", "error", "-show_streams",
                            "-show_format", "-of", "json", str(tmp_path / "video.mp4")))
     video, audio = probe["streams"]
-    assert (video["codec_name"], video["width"], video["height"]) == ("h264", 1080, 1920)
+    assert (video["codec_name"], video["width"], video["height"]) == ("h264", width, height)
+    assert video["pix_fmt"] == "yuv420p"
     assert audio["codec_name"] == "aac"
+    technical = json.loads((tmp_path / "technical.json").read_text(encoding="utf-8"))
+    assert not technical["black_intervals"]
+    assert not technical["mostly_silent"]
+    if format_name == "long":
+        assert technical["encoder"] == "libx264"
     assert float(probe["format"]["duration"]) == pytest.approx(33, abs=0.25)
     assert (tmp_path / "thumbnail.jpg").stat().st_size > 0
     assert "Kết luận" in (tmp_path / "subtitles.srt").read_text(encoding="utf-8")
+
+
+
+def test_cancel_running_child(tmp_path):
+    import sys
+
+    from factory import media
+
+    marker = tmp_path / "started"
+    token = media._checkpoint.set(lambda: cancel_if_started(marker))
+    try:
+        with pytest.raises(RuntimeError, match="cancel requested"):
+            media.run(sys.executable, "-c",
+                      "from pathlib import Path; import time; Path('started').touch(); "
+                      "time.sleep(3); Path('survived').touch()", cwd=tmp_path, timeout=6)
+    finally:
+        media._checkpoint.reset(token)
+    assert marker.exists()
+    assert not (tmp_path / "survived").exists()
+
+
+def cancel_if_started(marker):
+    if marker.exists():
+        raise RuntimeError("cancel requested")
+
+
+@pytest.mark.parametrize("stderr,fallback", [
+    ("[h264_nvenc @ 1] OpenEncodeSessionEx failed", True),
+    ("Error opening input: Invalid data found", False),
+])
+def test_encoder_error_classification(monkeypatch, stderr, fallback):
+    import subprocess
+
+    from factory import media
+
+    def fail(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, args, stderr=stderr)
+
+    monkeypatch.setattr(media, "run", fail)
+    expected = media.NvencFailure if fallback else subprocess.CalledProcessError
+    with pytest.raises(expected):
+        media.encode_scene("h264_nvenc", "ffmpeg")
+
+
+@pytest.mark.parametrize("mode", ["corrupt", "cancel"])
+def test_partial_mp4_never_published(tmp_path, monkeypatch, mode):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from factory import media
+
+    partial = tmp_path / "video.partial.mp4"
+    final = tmp_path / "video.mp4"
+    written, inspected = Event(), Event()
+
+    def fake_run(*args, **kwargs):
+        if "concat" in args:
+            partial.write_bytes(b"incomplete mp4")
+            written.set()
+            assert inspected.wait(5)
+        if args[0] == "ffprobe":
+            if partial.exists():
+                raise ValueError("moov atom not found")
+            return "2"
+        return ""
+
+    def checkpoint():
+        if mode == "cancel" and inspected.is_set():
+            raise RuntimeError("cancel requested")
+
+    monkeypatch.setattr(media, "run", fake_run)
+    monkeypatch.setenv("FACTORY_ENCODER", "cpu")
+    scene = factory.Scene(narration="Kiểm tra", caption="Kiểm tra")
+    with ThreadPoolExecutor() as pool:
+        future = pool.submit(media.render, tmp_path, [scene], "short", "mock",
+                             checkpoint=checkpoint)
+        try:
+            assert written.wait(5)
+            assert partial.exists()
+            assert not final.exists()
+        finally:
+            inspected.set()
+        error = RuntimeError if mode == "cancel" else ValueError
+        with pytest.raises(error):
+            future.result(timeout=5)
+    assert not partial.exists()
+    assert not final.exists()

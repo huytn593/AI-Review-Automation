@@ -2,22 +2,38 @@
 <html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Review Factory</title>
 <style>
-body{font:16px system-ui;background:#101a2b;color:#edf2ff;max-width:920px;margin:3rem auto;padding:0 1rem}
-section{background:#192841;padding:1.2rem;margin:1rem 0;border-radius:12px}
-button,input,select,textarea{font:inherit;padding:.6rem;margin:.3rem 0}
-textarea{box-sizing:border-box;width:100%;min-height:15rem} video{max-height:65vh;max-width:100%}
-a{color:#a9d8ff;margin-right:.8rem} pre{white-space:pre-wrap}
+:root{color-scheme:dark;--muted:#a3b1bf;--accent:#70d7c4}
+*{box-sizing:border-box}body{margin:0;background:#05080d;color:#f5f3ee;font:14px/1.6 system-ui}
+aside{position:fixed;inset:0 auto 0 0;width:220px;padding:30px 22px;border-right:1px solid #ffffff14;background:#0b1119}
+.brand{font-size:19px;letter-spacing:-.6px;margin-bottom:46px}small,.muted{color:var(--muted)}nav{display:grid;gap:12px}nav a{padding:10px;border-radius:9px;color:var(--muted);text-decoration:none}nav a:hover{background:#ffffff09;color:var(--accent)}
+main{margin-left:220px;padding:24px 38px;max-width:1650px}header{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid #ffffff14;padding-bottom:20px}
+.hero{position:relative;overflow:hidden;padding:65px 42px;margin:28px 0;border:1px solid #ffffff21;border-radius:24px;background:radial-gradient(ellipse at 85% 100%,#245b55 0,transparent 58%),linear-gradient(120deg,#131d28,#091116)}
+.hero:after{content:"";position:absolute;right:-80px;top:-110px;width:440px;height:440px;border:1px solid #70d7c455;border-radius:70% 30% 65% 35%;transform:rotate(35deg);pointer-events:none}
+.hero h1{font:clamp(34px,4vw,58px)/1.1 Georgia,serif;letter-spacing:-1.5px;margin:16px 0}.hero em{color:var(--accent);font-weight:normal}.eyebrow{color:var(--accent);font-size:11px;letter-spacing:2px}
+section{scroll-margin-top:20px;background:#101821b8;border:1px solid #ffffff16;padding:24px;margin:20px 0;border-radius:16px}
+h2{font-size:18px;font-weight:500}button,input,select,textarea{font:inherit;border:1px solid #ffffff25;border-radius:9px;padding:10px 14px;background:#0b121c;color:inherit}
+button{cursor:pointer}button:hover:enabled{border-color:var(--accent);transform:translateY(-1px)}button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:var(--accent);color:#08241f;border:0;font-weight:600}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}textarea{width:100%;min-height:260px;font:13px/1.7 monospace;margin:12px 0}
+video{width:100%;max-height:540px;background:#05080d;border-radius:12px}a{color:var(--accent)}#files{display:flex;flex-wrap:wrap;gap:14px}
+pre{white-space:pre-wrap;color:var(--muted)}.studio-grid{display:grid;grid-template-columns:1fr 280px;gap:22px}.workflow{display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:12px;padding:16px 0}.notice{padding:12px 16px;border-left:2px solid var(--accent)}
+label{display:inline-block;margin:8px 10px 8px 0}#error{color:#ffb7ad}#health{font-size:12px}details summary{cursor:pointer;color:var(--accent)}
+@media(max-width:1000px){aside{width:170px;padding:22px 12px}main{margin-left:170px;padding:20px}.studio-grid{grid-template-columns:1fr}}
+@media(max-width:650px){aside{position:static;width:auto}nav{display:flex;overflow:auto}.brand{margin:0 0 16px}main{margin:0;padding:14px}.hero{padding:34px 24px}header{flex-direction:column}}
+@media(prefers-reduced-motion:no-preference){.hero{animation:reveal .7s ease-out}button{transition:transform .15s,border-color .15s}@keyframes reveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}}
 </style>
-<h1>AI Review Factory</h1>
-<section><h2>Chủ đề</h2><form id="create"><input name="topic" required maxlength="100" placeholder="Tên công cụ"><select name="format"><option value="short">Shorts</option><option value="long">Video dài</option></select><button>Tạo dự án</button></form>
+<aside><div class="brand">◉ AI REVIEW <b>STUDIO</b></div><small>WORKSPACE</small><nav><a href="#overview">Overview</a><a href="#projects">Projects</a><a href="#studio">Research &amp; Script</a><a href="#preview">Video Studio</a><a href="#approval">QC &amp; Approval</a><a href="#settings">Settings</a></nav></aside>
+<main><header><span>Local workspace <span class="muted">/ AI Review Factory</span></span><span id="health">Đang kiểm tra kết nối…</span></header>
+<div class="hero" id="overview"><div class="eyebrow">CREATE · RESEARCH · RENDER</div><h1>Create smarter.<br><em>Publish beautifully.</em></h1><p class="muted">Từ ý tưởng đến video sẵn sàng để bạn duyệt.</p><a href="#projects">Tạo review mới ↗</a></div>
+<section id="projects"><h2>Chủ đề</h2><form id="create"><input name="topic" required maxlength="100" placeholder="Tên công cụ"><select name="format"><option value="short">Shorts</option><option value="long">Video dài</option></select><button class="primary">Tạo dự án</button></form>
 <label>Dự án <select id="jobs"></select></label></section>
-<section id="studio" hidden><h2>Nguồn và storyboard</h2>
+<section id="studio" hidden><div class="workflow"><span>01 Research</span><span>02 Script</span><span>03 Demo</span><span>04 Render</span><span>05 QC</span><span>06 Approval</span></div><h2>Nguồn và storyboard</h2><p class="notice">Nghiên cứu tự động và thư viện media chưa khả dụng. Biên tập nguồn và cảnh bằng JSON bên dưới.</p>
 <p>Nhập bằng chứng đã đối chiếu. Chỉ mục citations bắt đầu từ 1. Bản dựng sẽ báo thiếu demo thực tế.</p>
 <textarea id="editor" aria-label="JSON nguồn và storyboard"></textarea><br>
 <button id="save">Lưu kịch bản</button> <button id="draft">Tạo nháp Ollama</button> <button id="render">Dựng video</button>
-<h2>Preview và QC</h2><pre id="status"></pre><video id="video" controls hidden></video><p id="files"></p>
-<label><input id="reviewed" type="checkbox"> Tôi đã xem bản dựng, rà soát dữ kiện và quyền sử dụng</label>
-<button id="approve" disabled>Duyệt bản dựng</button></section><p id="error" role="alert"></p>
+<h2 id="preview">Video Studio</h2><div class="studio-grid"><div><pre id="status"></pre><video id="video" controls hidden></video><p id="files"></p></div><div><h2>Render control</h2><p class="muted">Bản dựng sử dụng kịch bản đã lưu. Tiến trình chưa cung cấp phần trăm hoàn thành.</p><button id="cancel">Hủy job</button></div></div><h2 id="approval">Quality control &amp; approval</h2>
+<label><input id="reviewed" type="checkbox"> Tôi đã xem video</label>
+<label><input id="facts" type="checkbox"> Tôi đã rà soát dữ kiện</label><label><input id="rights" type="checkbox"> Tôi đã kiểm tra quyền sử dụng</label><button id="approve" disabled>Duyệt bản dựng</button></section><section id="settings"><h2>Environment</h2><pre id="diagnostics">Đang tải…</pre><p class="muted">TTS và mức sử dụng tài nguyên chưa có dữ liệu xác minh từ API.</p></section><p id="error" role="alert"></p><p id="success" role="status"></p></main>
 <script>
 const el=id=>document.getElementById(id);
 async function api(path,method='GET',data){
@@ -35,7 +51,7 @@ function display(job){
   el('status').textContent=[job.state,job.verification,...(job.issues||[])].join('\n');
   el('video').hidden=!job.render_id;
   el('files').replaceChildren();
-  el('reviewed').checked=false;
+  ['reviewed','facts','rights'].forEach(id=>el(id).checked=false);
   el('approve').disabled=job.state!=='AWAITING_APPROVAL';
   const root='/jobs/'+job.id+'/artifacts/';
   el('video').removeAttribute('src');
@@ -56,18 +72,23 @@ async function refresh(id){
 const path=()=>'/jobs/'+el('jobs').value;
 function action(handler){
   return async event=>{
-    event?.preventDefault();el('error').textContent='';
-    const controls=[...document.querySelectorAll('button,textarea')];
-    controls.filter(control=>control.id!=='approve').forEach(control=>control.disabled=true);
-    try{await handler(event);}catch(error){el('error').textContent=error.message;}
-    finally{controls.filter(control=>control.id!=='approve').forEach(control=>control.disabled=false);}
+    event?.preventDefault();if(event?.target?.id==='create')event.formPayload=Object.fromEntries(new FormData(event.target));el('error').textContent='';el('success').textContent='';
+    const controls=[...document.querySelectorAll('button,textarea,input,select')];
+    controls.filter(control=>!['approve','cancel'].includes(control.id)).forEach(control=>control.disabled=true);
+    try{await handler(event);el('success').textContent='Đã hoàn tất thao tác.';}catch(error){el('error').textContent=error.message;}
+    finally{controls.filter(control=>!['approve','cancel'].includes(control.id)).forEach(control=>control.disabled=false);}
   };
 }
-el('create').onsubmit=action(async event=>refresh((await api('/jobs','POST',Object.fromEntries(new FormData(event.target)))).id));
+el('create').onsubmit=action(async event=>refresh((await api('/jobs','POST',event.formPayload)).id));
 el('jobs').onchange=action(async()=>display(await api(path())));
 el('save').onclick=action(async()=>display(await api(path()+'/editorial','PUT',JSON.parse(el('editor').value))));
 el('draft').onclick=action(async()=>{el('editor').value=JSON.stringify(await api(path()+'/draft','POST'),null,2);});
+el('cancel').onclick=async()=>{try{display(await api(path()+'/cancel','POST'));}catch(error){el('error').textContent=error.message;}};
 el('render').onclick=action(async()=>{el('status').textContent='Đang dựng kịch bản đã lưu…';display(await api(path()+'/render','POST'));});
-el('approve').onclick=action(async()=>{if(!el('reviewed').checked)throw Error('Cần xác nhận đã xem và rà soát');display(await api(path()+'/approve','POST',{render_id:previewId,preview_reviewed:true,facts_reviewed:true,rights_reviewed:true}));});
+el('approve').onclick=action(async()=>{if(!['reviewed','facts','rights'].every(id=>el(id).checked))throw Error('Cần xác nhận đã xem và rà soát');display(await api(path()+'/approve','POST',{render_id:previewId,preview_reviewed:true,facts_reviewed:true,rights_reviewed:true}));});
+api('/health').then(data=>{
+el('health').textContent='● Backend online · FFmpeg '+(data.tools_on_path.ffmpeg?'sẵn sàng':'chưa tìm thấy');
+el('diagnostics').textContent=JSON.stringify(data,null,2);
+}).catch(error=>{el('health').textContent='Backend chưa kết nối';el('diagnostics').textContent=error.message;});
 refresh().catch(error=>el('error').textContent=error.message);
 </script></html>

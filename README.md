@@ -76,3 +76,31 @@ Edge TTS cần kết nối mạng. Với eSpeak NG đã cài, đặt FACTORY_TTS
 Smoke test yêu cầu thư mục đích mới và ghi video.mp4, subtitles.srt, thumbnail.jpg và technical.json.
 FACTORY_ENCODER=cpu buộc dùng libx264. Mặc định renderer thử mã hóa NVENC trước.
 API cancel chờ đến checkpoint tiếp theo, tối đa đến khi lệnh con hiện tại hoàn tất hoặc timeout.
+
+### M1.1 — kiểm tra hai định dạng trên Windows
+
+```powershell
+powershell -NoProfile -File .\scripts\Setup-Factory.ps1 -EdgeTts
+powershell -NoProfile -File .\scripts\Test-M1.ps1 -Listen
+```
+
+Mỗi lần chạy tạo thư mục riêng dưới workspace và kiểm tra hai video có giọng Edge TTS.
+Xem technical.json để biết encoder và các đoạn hình đen. Dùng -Listen để nghe WAV của cảnh đầu từng định dạng.
+NVENC lỗi khởi tạo trong khi encode sẽ thử lại toàn bộ bằng CPU một lần.
+API cancel kiểm tra trong lúc tiến trình con chạy và chỉ dừng cây tiến trình của lệnh thuộc render hiện tại.
+
+### M1.2 — kiểm tra độ ổn định MP4
+
+Render ghi concat vào `video.partial.mp4` trong thư mục riêng của lượt chạy.
+Sau khi FFmpeg thoát thành công, ffprobe và các kiểm tra kỹ thuật đọc file tạm.
+Renderer đổi tên file sang `video.mp4` trên cùng filesystem sau khi hoàn tất.
+API chỉ công bố render ID sau khi xử lý xong. Log INFO của `factory.media` ghi
+PID, thư mục render chứa job ID, đích lệnh, exit code và thời gian xử lý.
+
+```powershell
+powershell -NoProfile -File .\scripts\Setup-Factory.ps1 -EdgeTts
+powershell -NoProfile -File .\scripts\Test-M1.ps1 -Listen
+```
+
+Xem encoder trong `technical.json` ở mỗi thư mục output và phát lại cả hai MP4
+để kiểm tra phụ đề và narration. Smoke test không gửi yêu cầu cancel qua API.

@@ -30,6 +30,8 @@ def main():
     technical = json.loads((output / "technical.json").read_text(encoding="utf-8"))
     if technical["mostly_silent"]:
         raise SystemExit("FAIL: narration is mostly silent")
+    if technical["black_intervals"]:
+        raise SystemExit("FAIL: black frames detected")
     print(json.dumps({"file": str(output / "video.mp4"), "voice": voice, **technical}, ensure_ascii=False))
 
 

@@ -240,6 +240,8 @@ def render_job(job: UUID):
             (folder / f"{name}.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         issues = quality_issues(current, scenes, duration, voice)
         technical = json.loads((folder / "technical.json").read_text(encoding="utf-8"))
+        if technical["black_intervals"]:
+            issues.append("Phát hiện đoạn hình đen")
         if technical["mostly_silent"]:
             issues.append("Audio gần như im lặng")
         current["technical"] = technical
