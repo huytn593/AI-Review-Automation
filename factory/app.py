@@ -97,9 +97,25 @@ class Approval(BaseModel):
     rights_reviewed: Literal[True]
 
 
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+
+@app.get("/assets/{filename}")
+def frontend_asset(filename: str):
+    from fastapi.staticfiles import StaticFiles
+
+    assets = FRONTEND_DIST / "assets"
+    static = StaticFiles(directory=assets, check_dir=False)
+    path, stat = static.lookup_path(filename)
+    if stat is None or not Path(path).is_file():
+        raise HTTPException(404, "Asset not found")
+    return FileResponse(path)
+
+
 @app.get("/")
 def home():
-    return FileResponse(Path(__file__).with_name("index.html"))
+    build = FRONTEND_DIST / "index.html"
+    return FileResponse(build if build.is_file() else Path(__file__).with_name("index.html"))
 
 
 @app.get("/health")
@@ -290,6 +306,34 @@ def artifact(job: UUID, name: Literal["video.mp4", "thumbnail.jpg", "subtitles.s
     if "render_id" not in current:
         raise HTTPException(404, "Chưa có bản dựng")
     return FileResponse(ROOT / str(job) / current["render_id"] / name)
+
+
+@app.get("/jobs/{job}/media/{kind}")
+def media_preview(job: UUID, kind: Literal["demo", "narration"], scene: int = 0):
+    current = get(job)
+    directory = ROOT / str(job)
+    if kind == "demo":
+        filename = (current.get("demo") or {}).get("file", "")
+        try:
+            filename = f"{UUID(Path(filename).stem)}.webm"
+        except ValueError:
+            raise HTTPException(404, "Chưa có demo") from None
+        target, mime = directory / filename, "video/webm"
+    else:
+        if not current.get("render_id") or not 0 <= scene < len(current["scenes"]):
+            raise HTTPException(404, "Chưa có audio cho cảnh")
+        target = directory / str(UUID(current["render_id"])) / f"voice-{scene}.wav"
+        mime = "audio/wav"
+    if not target.resolve().is_relative_to(directory) or not target.is_file():
+        raise HTTPException(404, "Không tìm thấy media")
+    with target.open("rb") as stream:
+        header = stream.read(12)
+    valid = header.startswith(bytes.fromhex("1a45dfa3")) if kind == "demo" else (
+        header[:4] in {b"RIFF", b"RF64"} and header[8:12] == b"WAVE"
+    )
+    if not valid:
+        raise HTTPException(415, "Định dạng media không hợp lệ")
+    return FileResponse(target, media_type=mime, headers={"X-Content-Type-Options": "nosniff"})
 
 
 @app.post("/jobs/{job}/approve")

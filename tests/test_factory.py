@@ -226,3 +226,33 @@ def test_partial_mp4_never_published(tmp_path, monkeypatch, mode):
             future.result(timeout=5)
     assert not partial.exists()
     assert not final.exists()
+
+
+def test_current_render_approval_and_media_boundary(client):
+    from contextlib import closing
+    from uuid import uuid4
+
+    job = client.post("/jobs", json={"topic": "Isolated approval fixture"}).json()
+    render_id = str(uuid4())
+    path = f"/jobs/{job['id']}"
+    approval = dict(render_id=render_id, preview_reviewed=True, facts_reviewed=True, rights_reviewed=True)
+    with closing(factory.connect()) as db, db:
+        factory.write(db, job["id"], "QC_FAILED", {**job, "render_id": render_id, "issues": ["fixture"]})
+    assert client.post(path + "/approve", json=approval).status_code == 409
+    with closing(factory.connect()) as db, db:
+        factory.write(db, job["id"], "AWAITING_APPROVAL", {**job, "render_id": render_id, "issues": []})
+    assert client.post(path + "/approve", json={**approval, "render_id": str(uuid4())}).status_code == 409
+    folder = factory.ROOT / job["id"] / render_id
+    folder.mkdir(parents=True)
+    audio = folder / "voice-0.wav"
+    audio.write_bytes(b"invalid media")
+    assert client.get(path + "/media/narration").status_code == 415
+    audio.write_bytes(b"RIFF\x00\x00\x00\x00WAVE")
+    assert client.get(path + "/media/narration").headers["content-type"] == "audio/wav"
+    assert client.get(path + "/media/narration?scene=-1").status_code == 404
+    assert client.get(path + "/media/demo").status_code == 404
+    assert client.post(path + "/approve", json=approval).status_code == 200
+    assert client.get(path).json()["state"] == "APPROVED"
+    assert client.put(path + "/editorial", json={"sources": [], "scenes": job["scenes"]}).status_code == 200
+    assert client.post(path + "/approve", json=approval).status_code == 409
+    assert client.get(path + "/media/narration").status_code == 404

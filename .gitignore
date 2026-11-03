@@ -3,3 +3,7 @@
 __pycache__/
 .pytest_cache/
 workspace/
+
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/

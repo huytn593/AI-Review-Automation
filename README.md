@@ -104,3 +104,27 @@ powershell -NoProfile -File .\scripts\Test-M1.ps1 -Listen
 
 Xem encoder trong `technical.json` ở mỗi thư mục output và phát lại cả hai MP4
 để kiểm tra phụ đề và narration. Smoke test không gửi yêu cầu cancel qua API.
+
+### Studio Phase 2 trên Windows
+
+Chạy từ thư mục repo sau khi đã thiết lập Python venv và FFmpeg.
+
+```powershell
+Push-Location frontend
+npm ci
+npm run build
+Pop-Location
+.\.venv\Scripts\python.exe -m uvicorn factory.app:app --host 127.0.0.1 --port 8001
+```
+
+Mở http://127.0.0.1:8001. FastAPI phục vụ giao diện HTML cũ khi chưa có bản build.
+Để phát triển UI, chạy `npm run dev` trong frontend và giữ FastAPI ở port 8001.
+
+Để chạy Playwright, kích hoạt Python venv, vào frontend và chạy
+`npx playwright install chromium` rồi `npm run test:e2e`. Test tự mở backend
+trên port 8012 với SQLite tạm và audio mock để kiểm tra cổng QC.
+
+Windows Playwright dùng Chrome đã cài theo mặc định. Đặt
+`$env:STUDIO_HEADED = "1"` nếu muốn quan sát trực tiếp. Đặt
+`$env:STUDIO_CHANNEL = "chromium"` nếu muốn dùng Chromium của Playwright.
+Trace, ảnh chụp và thông tin lỗi nằm trong `frontend/test-results`.
