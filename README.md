@@ -128,3 +128,30 @@ Windows Playwright dùng Chrome đã cài theo mặc định. Đặt
 `$env:STUDIO_HEADED = "1"` nếu muốn quan sát trực tiếp. Đặt
 `$env:STUDIO_CHANNEL = "chromium"` nếu muốn dùng Chromium của Playwright.
 Trace, ảnh chụp và thông tin lỗi nằm trong `frontend/test-results`.
+
+### Prototype hành tinh Three.js
+
+Chạy bản build ở port 8001 theo hướng dẫn Studio Phase 2. Hành tinh được tải
+riêng, xoay chậm và đổi góc nhìn theo con trỏ. Khi con trỏ rời khung,
+camera trở về giữa. WebGL không khả dụng sẽ hiển thị hình minh họa tĩnh.
+
+Scene có hai đối tượng vẽ, một sphere 64 × 40 và 140 điểm sáng. DPR tối đa
+1,35, giảm về 1 sau 30 frame liên tiếp chậm hơn 25 ms. Scene dừng vẽ
+liên tục khi tab trình duyệt bị ẩn, khung nằm ngoài viewport, có job render,
+đang mở Video Studio hoặc hệ điều hành yêu cầu giảm chuyển động.
+
+Kiểm tra trên Windows với Chrome đã cài, từ thư mục repo:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+Push-Location frontend
+npm ci
+npm run build
+npx playwright install ffmpeg
+$env:STUDIO_HEADED = "1"
+npm run test:planet
+Pop-Location
+```
+
+Playwright tự mở backend test trên port 8012. Ảnh chụp ở hai viewport,
+video WebM và trace lỗi nằm trong `frontend/test-results`.

@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:planet": "playwright test tests/planet.spec.ts"
   },
   "keywords": [],
   "author": "",
@@ -15,12 +16,14 @@
   "type": "commonjs",
   "dependencies": {
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"
   }
