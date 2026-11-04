@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import struct
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 API = "https://api.polyhaven.com"
 AGENT = "AI-Review-Studio/1.0 (+https://github.com/huytn593/AI-Review-Automation)"
@@ -21,11 +21,24 @@ ROLES = {
 }
 
 
+def check_url(url):
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname not in {
+        "api.polyhaven.com", "cdn.polyhaven.com", "dl.polyhaven.org",
+    } or parsed.username is not None:
+        raise ValueError(f"Unexpected Poly Haven URL host: {parsed.hostname!r}")
+
+
+class PolyHavenRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        check_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def read(url, limit):
-    with urlopen(Request(url, headers={"User-Agent": AGENT}), timeout=15) as response:
-        host = urlsplit(response.geturl())
-        if host.scheme != "https" or not (host.hostname or "").endswith(".polyhaven.com"):
-            raise ValueError("Unexpected provider host")
+    check_url(url)
+    opener = build_opener(PolyHavenRedirect())
+    with opener.open(Request(url, headers={"User-Agent": AGENT}), timeout=15) as response:
         data = response.read(limit + 1)
     if len(data) > limit:
         raise ValueError("File exceeds size limit")
@@ -34,9 +47,6 @@ def read(url, limit):
 
 def download(entry):
     size = entry["size"]
-    url = urlsplit(entry["url"])
-    if url.scheme != "https" or not (url.hostname or "").endswith(".polyhaven.com"):
-        raise ValueError("Unexpected download host")
     data = read(entry["url"], size)
     if len(data) != size or hashlib.md5(data).hexdigest() != entry["md5"].lower():
         raise ValueError("Provider checksum mismatch")
