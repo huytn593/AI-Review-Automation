@@ -1,5 +1,7 @@
 import {useEffect,useRef,useState} from 'react'
 import * as THREE from 'three'
+import cloudUrl from './assets/emerald-clouds.webp'
+import surfaceUrl from './assets/emerald-surface.webp'
 import {botanicalAssets} from './BotanicalAssets'
 
 export default function Planet({paused}:{paused:boolean}) {
@@ -10,69 +12,51 @@ export default function Planet({paused}:{paused:boolean}) {
   useEffect(()=>{inactive.current=paused},[paused])
   useEffect(()=>{
     const element=host.current!
+    const query=new URLSearchParams(location.search)
+    const debug=(import.meta.env.DEV||import.meta.env.VITE_MOTION_DEBUG==='1')&&query.get('motionDebug')==='1'
+    const isolate=debug&&query.get('isolate')==='foliage'
+    const wind=debug?Math.max(0,Math.min(3,Number(query.get('wind')??1)||0)):1
+    let overlay:HTMLPreElement|undefined
+    if(debug){overlay=document.createElement('pre');overlay.className='motion-debug';element.append(overlay)}
+    if(isolate)element.closest('.hero')?.classList.add('motion-isolate')
     let renderer:THREE.WebGLRenderer
     try {
       renderer=new THREE.WebGLRenderer({alpha:true,antialias:false,powerPreference:'low-power'})
     } catch {
       setFallback(true)
-      return
+      if(overlay)overlay.textContent='WebGL unavailable; static fallback.'
+      return ()=>overlay?.remove()
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.35))
     const scene=new THREE.Scene()
     const camera=new THREE.PerspectiveCamera(35,1,.1,30)
     camera.position.set(0,0,5.8)
     const geometry=new THREE.SphereGeometry(1.48,80,48)
-    const material=new THREE.ShaderMaterial({
-      vertexShader:`
-        varying vec3 localPoint;
-        varying vec3 normalWorld;
-        varying vec3 worldPoint;
-        void main(){
-          localPoint=position;
-          normalWorld=normalize(mat3(modelMatrix)*normal);
-          worldPoint=(modelMatrix*vec4(position,1.0)).xyz;
-          gl_Position=projectionMatrix*viewMatrix*vec4(worldPoint,1.0);
-        }`,
-      fragmentShader:`
-        varying vec3 localPoint;
-        varying vec3 normalWorld;
-        varying vec3 worldPoint;
-        float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
-        float noise(vec3 p){
-          vec3 i=floor(p), f=fract(p);
-          f=f*f*(3.0-2.0*f);
-          return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
-            mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
-        }
-        void main(){
-          vec3 p=localPoint*3.2;
-          vec3 warp=vec3(noise(p*.7),noise(p*.9+5.),noise(p*.8-2.))-.5;
-          vec3 terrainPoint=p+warp*1.15;
-          float terrain=.55*noise(terrainPoint)+.25*noise(terrainPoint*2.3)+.13*noise(terrainPoint*6.)+.07*noise(terrainPoint*13.);
-          float land=smoothstep(.43,.60,terrain);
-          float clouds=smoothstep(.50,.76,noise(p*1.7+vec3(6.,2.,1.))*.68+noise(p*5.)*.32);
-          float detail=noise(p*15.);
-          vec3 n=normalize(normalWorld);
-          float incidence=dot(n,normalize(vec3(-.55,.75,.43)));
-          float daylight=smoothstep(-.21,.78,incidence);
-          float rim=pow(1.0-max(dot(n,normalize(cameraPosition-worldPoint)),0.0),3.3);
-          vec3 surface=mix(vec3(.003,.021,.026),vec3(.09,.42,.26)*(.68+detail*.65),land);
-          float veins=pow(1.0-abs(sin(terrain*39.0+detail*1.4)),14.0);
-          vec3 color=surface*(.22+daylight*1.15)+vec3(.12,.53,.40)*rim*(.22+daylight)+vec3(.11,.24,.19)*veins*land*daylight;
-          color=mix(color,vec3(.51,.73,.65)*(.12+.88*daylight),clouds*.44);
-          color+=vec3(.48,.34,.13)*smoothstep(.82,.98,detail)*land*(1.-daylight)*.26;
-          vec3 eye=normalize(cameraPosition-worldPoint);
-          vec3 halfVector=normalize(eye+normalize(vec3(-.55,.75,.43)));
-          float oceanGlint=pow(max(dot(n,halfVector),0.),28.)*(1.-land);
-          float coast=1.-smoothstep(.006,.045,abs(terrain-.47));
-          color+=vec3(.20,.53,.43)*oceanGlint*daylight*.24;
-          color+=vec3(.30,.57,.37)*coast*daylight*(.19+detail*.18);
-          gl_FragColor=vec4(color,1.0);
-        }`,
-    })
+    const surface=new THREE.TextureLoader().load(surfaceUrl,()=>{dirty=true})
+    surface.colorSpace=THREE.SRGBColorSpace
+    surface.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy())
+    const material=new THREE.MeshStandardMaterial({map:surface,color:0xb6e4d3,roughness:.64,metalness:.04,
+      bumpMap:surface,bumpScale:.018,emissive:0x17322b,emissiveMap:surface,emissiveIntensity:.14})
     const globe=new THREE.Mesh(geometry,material)
     globe.rotation.z=.22
+    globe.position.y=.12
     scene.add(globe)
+    const cloudMap=new THREE.TextureLoader().load(cloudUrl,()=>{dirty=true})
+    cloudMap.wrapS=THREE.RepeatWrapping
+    const cloudMaterial=new THREE.MeshStandardMaterial({color:0xb6e2d2,alphaMap:cloudMap,transparent:true,opacity:.48,depthWrite:false,roughness:1})
+    const clouds=new THREE.Mesh(geometry,cloudMaterial)
+    clouds.scale.setScalar(1.012);clouds.position.copy(globe.position);clouds.rotation.z=.22
+    scene.add(clouds)
+    const fogTime={value:0}
+    const fogMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,
+      uniforms:{map:{value:cloudMap},time:fogTime},
+      vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader:`uniform sampler2D map;uniform float time;varying vec2 vUv;
+        void main(){float edge=smoothstep(0.,.14,vUv.x)*smoothstep(1.,.86,vUv.x)*sin(vUv.y*3.14159);
+        float veil=texture2D(map,vec2(vUv.x+time*.009,vUv.y*.7+.1)).r;
+        gl_FragColor=vec4(.48,.72,.63,veil*edge*.58);}`})
+    const fogGeometry=new THREE.PlaneGeometry(5.8,1.1)
+    const fog=new THREE.Mesh(fogGeometry,fogMaterial);fog.position.set(0,-1.08,1.38);scene.add(fog)
     const positions=new Float32Array(140*3)
     for(let i=0;i<positions.length;i+=3){
       positions[i]=Math.sin(i*41.7)*5
@@ -99,7 +83,8 @@ export default function Planet({paused}:{paused:boolean}) {
           gl_FragColor=vec4(.24,.9,.65,limb*key*.55);}`,
     })
     const shell=new THREE.Mesh(geometry,atmosphere)
-    shell.scale.setScalar(1.055)
+    shell.scale.setScalar(1.025)
+    shell.position.copy(globe.position)
     scene.add(shell)
     let sceneTime=0
     const canvas=renderer.domElement
@@ -107,10 +92,27 @@ export default function Planet({paused}:{paused:boolean}) {
     element.append(canvas)
     let frame=0,last=0,dirty=true,visible=true,lost=false,slowFrames=0
     const foliage=botanicalAssets(scene,()=>{dirty=true;setAssetCredit(true)})
-    scene.add(new THREE.HemisphereLight(0xc7ffea,0x152925,1.65))
-    const meadowLight=new THREE.DirectionalLight(0x9ae9c9,1.5)
+    scene.add(new THREE.HemisphereLight(0xb7e7dc,0x101d27,.85))
+    const meadowLight=new THREE.DirectionalLight(0xd1ffdf,4.6)
     meadowLight.position.set(-3,4,1)
     scene.add(meadowLight)
+    if(isolate){scene.children.forEach(child=>{if(child!==foliage.group&&!(child instanceof THREE.Light))child.visible=false})}
+    const viewFrustum=new THREE.Frustum()
+    let sampleStart=0,sampleFrames=0,fps=0
+    function diagnostics(now:number,reason:string){
+      if(!debug)return
+      sampleFrames++
+      if(now-sampleStart>1000){fps=sampleFrames*1000/(now-sampleStart);sampleFrames=0;sampleStart=now}
+      scene.updateMatrixWorld(true)
+      viewFrustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse))
+      const visibleAnimatedMeshes=foliage.group.children.filter(child=>child.visible&&child.userData.role!=='rock'&&viewFrustum.intersectsObject(child)).length
+      const state={visibleAnimatedMeshes,running:!reason,time:sceneTime,loadedAssets:foliage.stats.loaded,animatedMeshes:foliage.stats.animatedMeshes,
+        wind,pauseReason:reason||'none',webgl:lost?'lost':'ready',fps:Number(fps.toFixed(1)),
+        calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,
+        variants:foliage.stats.variants,assets:foliage.stats.requests,errors:foliage.stats.errors,renderer:renderer.getContext().getParameter(renderer.getContext().RENDERER)}
+      canvas.dataset.motion=JSON.stringify(state)
+      if(overlay)overlay.textContent=JSON.stringify(state,null,2)
+    }
     const hero=element.closest<HTMLElement>('.hero')
     let pointerX=0,pointerY=0
     const motion=matchMedia('(prefers-reduced-motion: reduce)')
@@ -129,8 +131,9 @@ export default function Planet({paused}:{paused:boolean}) {
     resize()
     function draw(now:number){
       frame=requestAnimationFrame(draw)
-      if(lost||document.hidden||!visible){last=0;return}
+      if(lost||document.hidden||!visible){diagnostics(now,lost?'context lost':document.hidden?'hidden tab':'outside viewport');last=0;return}
       if(motion.matches||inactive.current){
+        diagnostics(now,motion.matches?'reduced motion':'render request / video studio')
         if(dirty)renderer.render(scene,camera)
         dirty=false
         last=0
@@ -140,19 +143,22 @@ export default function Planet({paused}:{paused:boolean}) {
       last=now
       slowFrames=elapsed>25?slowFrames+1:0
       if(slowFrames===30&&renderer.getPixelRatio()>1){renderer.setPixelRatio(1);resize()}
-      const dt=Math.min(elapsed,45)/1000
-      globe.rotation.y+=dt*.19
-      sceneTime+=dt
+      const dt=Math.min(elapsed,250)/1000
+      globe.rotation.y+=dt*.025
+      sceneTime+=Math.min(elapsed,1000)/1000
+      clouds.rotation.y+=dt*.033
+      fogTime.value=sceneTime
       camera.position.x+=(pointerX*.5-camera.position.x)*Math.min(1,dt*5)
       camera.position.y+=(pointerY*.34-camera.position.y)*Math.min(1,dt*5)
-      scene.rotation.z=Math.sin(sceneTime*.15)*.003
+      // No whole-scene rocking: roots stay anchored while leaf vertices bend.
       seeds.forEach(([x,y,z],i)=>pollenPositions.setXYZ(i,x+Math.sin(sceneTime*.34+i)*.16,y+Math.sin(sceneTime*.43+i*1.7)*.13,z))
       pollenPositions.needsUpdate=true
       starMaterial.opacity=.47+Math.sin(sceneTime*.39)*.055
       const x=camera.position.x/.5
       const y=camera.position.y/.34
-      foliage.update(sceneTime,x,y)
-      hero?.style.setProperty('--foreground-x',`${x*11+Math.sin(sceneTime*.63)*1.7}px`)
+      foliage.update(sceneTime,x,y,wind)
+      if(isolate&&query.has('specimen'))foliage.group.children.forEach(child=>{child.visible=child.userData.role===query.get('specimen');if(child instanceof THREE.InstancedMesh)child.count=1})
+      hero?.style.setProperty('--foreground-x',`${x*11}px`)
       hero?.style.setProperty('--foreground-y',`${y*5}px`)
       hero?.style.setProperty('--midground-x',`${x*4}px`)
       element.style.setProperty('--scene-x',`${x*5+Math.sin(sceneTime*.23)*19}px`)
@@ -161,6 +167,7 @@ export default function Planet({paused}:{paused:boolean}) {
       renderer.render(scene,camera)
       canvas.dataset.cameraX=camera.position.x.toFixed(3)
       canvas.dataset.cameraY=camera.position.y.toFixed(3)
+      diagnostics(now,'')
       dirty=false
     }
     function move(event:PointerEvent){
@@ -184,9 +191,11 @@ export default function Planet({paused}:{paused:boolean}) {
       element.removeEventListener('pointerleave',leave)
       canvas.removeEventListener('webglcontextlost',lose)
       canvas.removeEventListener('webglcontextrestored',restore)
-      geometry.dispose();material.dispose();stars.dispose();starMaterial.dispose()
+      overlay?.remove();hero?.classList.remove('motion-isolate')
+      geometry.dispose();material.dispose();surface.dispose();stars.dispose();starMaterial.dispose()
       foliage.dispose()
       atmosphere.dispose();pollen.dispose();pollenMaterial.dispose()
+      cloudMap.dispose();cloudMaterial.dispose();fogGeometry.dispose();fogMaterial.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
       canvas.remove()

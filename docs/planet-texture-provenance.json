@@ -1,0 +1,22 @@
+[
+  {
+    "path": "frontend/src/assets/emerald-surface.webp",
+    "provider": "OpenAI built-in image generation",
+    "type": "generated illustration",
+    "license": "Generated asset; not a CC0 third-party download",
+    "usage": "Albedo and modest bump map on real MeshStandardMaterial sphere",
+    "prompt": "2:1 equirectangular fictional emerald ocean world, delicate coastlines, river deltas and forest archipelagos; uniform diffuse illumination, no sphere, clouds, stars or text.",
+    "bytes": 463160,
+    "sha256": "b53e9d2b67106d64ad50c1adb840b554b7c5b1e9500952c39ee49c67591519cf"
+  },
+  {
+    "path": "frontend/src/assets/emerald-clouds.webp",
+    "provider": "OpenAI built-in image generation",
+    "type": "generated illustration",
+    "license": "Generated asset; not a CC0 third-party download",
+    "usage": "Separate cloud sphere alpha and moving WebGL mist",
+    "prompt": "2:1 equirectangular grayscale thin satellite cloud fronts, 75 percent black clear areas, no terrain or sphere; seamless longitude.",
+    "bytes": 63618,
+    "sha256": "424cf05648e5c6a35bbbb2e959ddfbc9e13ae28e32e02aa52a54f0d76160cc43"
+  }
+]

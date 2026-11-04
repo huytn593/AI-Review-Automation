@@ -1,0 +1,84 @@
+[
+  {
+    "role": "fern",
+    "name": "Fern 02",
+    "provider": "Poly Haven",
+    "author": [
+      "Rob Tuytel",
+      "Rico Cilliers"
+    ],
+    "source": "https://polyhaven.com/a/fern_02",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://polyhaven.com/license",
+    "commercialUse": true,
+    "attribution": "Powered by Poly Haven",
+    "downloadedAt": "2026-11-04T05:30:32.165108+00:00",
+    "originalFormat": "glTF",
+    "outputFormat": "GLB",
+    "originalBytes": 1146361,
+    "path": "/assets/bio-fern-7e4a4ff2f8b5.glb",
+    "bytes": 1143580,
+    "sha256": "7e4a4ff2f8b53f946968d824d5bc799ccbcc1bf30c766a8513e9e1d38486ce73"
+  },
+  {
+    "role": "flower",
+    "name": "Dandelion 01",
+    "provider": "Poly Haven",
+    "author": [
+      "Rob Tuytel",
+      "Rico Cilliers"
+    ],
+    "source": "https://polyhaven.com/a/dandelion_01",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://polyhaven.com/license",
+    "commercialUse": true,
+    "attribution": "Powered by Poly Haven",
+    "downloadedAt": "2026-11-04T05:31:09.387995+00:00",
+    "originalFormat": "glTF",
+    "outputFormat": "GLB",
+    "originalBytes": 3099944,
+    "path": "/assets/bio-flower-4355cea955c3.glb",
+    "bytes": 3096384,
+    "sha256": "4355cea955c38ec06ede21a691f9c1fddd24ad7e84588d023caf9c53e0108d00"
+  },
+  {
+    "role": "grass",
+    "name": "Grass Bermuda 01",
+    "provider": "Poly Haven",
+    "author": [
+      "Rico Cilliers"
+    ],
+    "source": "https://polyhaven.com/a/grass_bermuda_01",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://polyhaven.com/license",
+    "commercialUse": true,
+    "attribution": "Powered by Poly Haven",
+    "downloadedAt": "2026-11-04T05:31:46.224428+00:00",
+    "originalFormat": "glTF",
+    "outputFormat": "GLB",
+    "originalBytes": 1450530,
+    "path": "/assets/bio-grass-c2c68f1526f9.glb",
+    "bytes": 1437064,
+    "sha256": "c2c68f1526f9aef03f9b9387bb49005f7415384405eb998d110b14e908a1d5f4"
+  },
+  {
+    "role": "rock",
+    "name": "Rock Moss Set 01",
+    "provider": "Poly Haven",
+    "author": [
+      "Kless Gyzen"
+    ],
+    "source": "https://polyhaven.com/a/rock_moss_set_01",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://polyhaven.com/license",
+    "commercialUse": true,
+    "attribution": "Powered by Poly Haven",
+    "downloadedAt": "2026-11-04T05:32:24.173467+00:00",
+    "originalFormat": "glTF",
+    "outputFormat": "GLB",
+    "originalBytes": 1937065,
+    "path": "/assets/bio-rock-451599a92e37.glb",
+    "bytes": 1933008,
+    "sha256": "451599a92e375059fda4c11fc9265e35dde547df6dbc65a6f0572b4d72ae9e88"
+  }
+]

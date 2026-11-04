@@ -29,7 +29,7 @@ export default function Video({job}:{job:Job}) {
   return <><div className="video-grid"><aside><h3>Cảnh</h3>{job.scenes.map((scene,i)=><details key={i}><summary>{i+1}. {scene.caption}</summary><p>{scene.narration}</p><small>{scene.visual_type}</small></details>)}</aside>
     <div className="screen">{job.render_id?<video ref={player} controls preload="metadata" poster={artifact('thumbnail.jpg')} src={artifact('video.mp4')} onTimeUpdate={e=>setPosition(e.currentTarget.currentTime)}/>:<p>Chưa có bản dựng</p>}</div>
     <aside><h3>Thông tin render</h3><p>{job.format==='short'?'Shorts · 9:16':'Landscape · 16:9'}</p><p>{job.state}</p><p>{job.technical?.encoder??'Chưa có thông tin encoder'}</p>
-    {job.render_id&&['video.mp4','thumbnail.jpg','subtitles.srt','timeline.json','manifest.json'].map(name=><a key={name} href={artifact(name)} download>{name}</a>)}</aside></div>
+    {job.render_id&&['video.mp4','thumbnail.jpg','subtitles.srt','timeline.json','manifest.json'].map(name=><a key={name} href={artifact(name)} download={name}>{name}</a>)}</aside></div>
     {error&&<p role="alert">{error}</p>}
     {segments.length>0&&<label>Vị trí phát (giây)<input type="range" min={0} max={segments.at(-1)!.start+segments.at(-1)!.duration} step={0.1} value={position} onChange={e=>{const time=e.target.valueAsNumber;if(player.current)player.current.currentTime=time;setPosition(time)}}/></label>}
     {segments.length>0&&<><h3>Timeline · {position.toFixed(1)} giây</h3><div className="timeline">{segments.map((segment,i)=><button key={i} style={{flexGrow:segment.duration}} onClick={()=>{if(player.current)player.current.currentTime=segment.start}}><small>{segment.start.toFixed(1)}s · {segment.duration.toFixed(1)}s</small><br/>{segment.caption}</button>)}</div></>}

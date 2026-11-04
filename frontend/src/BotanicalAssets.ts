@@ -1,116 +1,90 @@
 import * as THREE from 'three'
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 
-type Asset = {role:'fern'|'flower'|'grass'|'rock'; path:string; provider:string; license:string; commercialUse:boolean; bytes:number}
+type Role='fern'|'flower'|'grass'|'rock'
+type Asset={role:Role;path:string;provider:string;license:string;commercialUse:boolean;bytes:number}
 const manifests=import.meta.glob<Asset[]>('./botanical-manifest.json',{eager:true,import:'default'})
-const placements={
-  fern:[[-1.53,-1.48,1.52,.68],[1.37,-1.5,1.38,.63],[-.71,-1.62,.4,.45]],
-  flower:[[1.58,-1.41,1.52,.47],[-1.25,-1.45,1.35,.46],[.46,-1.63,.25,.30]],
-  grass:[[-1.1,-1.58,1.0,.32],[.7,-1.64,.53,.38],[1.03,-1.55,1.16,.37],[-.35,-1.65,.46,.27]],
-  rock:[[-1.27,-1.6,1.55,.35],[1.23,-1.61,1.14,.4]],
-} satisfies Record<Asset['role'],number[][]>
-
-function release(root:THREE.Object3D){
-  const resources=new Set<THREE.BufferGeometry|THREE.Material|THREE.Texture>()
-  root.traverse(node=>{
-    if(!(node instanceof THREE.Mesh))return
-    resources.add(node.geometry)
-    for(const material of Array.isArray(node.material)?node.material:[node.material]){
-      resources.add(material)
-      for(const value of Object.values(material))if(value instanceof THREE.Texture)resources.add(value)
-    }
-  })
-  resources.forEach(resource=>resource.dispose())
+// Coordinates are in stage space. Roots sit inside the frustum, above the meadow lip.
+const placements:Record<Role,number[][]>={
+ fern:[[-1.48,-1.12,1.15,.83],[1.45,-1.10,1.05,.77],[-.82,-1.19,.6,.55]],
+ flower:[[1.13,-1.13,1.0,.83],[-1.12,-1.14,.85,.68],[.48,-1.22,.3,.53]],
+ grass:[[-1.48,-1.2,.6,.55],[.75,-1.22,.35,.58],[1.5,-1.18,.7,.6],[-.45,-1.24,.35,.5]],
+ rock:[[-1.22,-1.18,1.05,.42],[1.22,-1.18,.9,.34]],
 }
-
-export function botanicalAssets(scene:THREE.Scene,onReady:(role:Asset['role'])=>void){
-  const group=new THREE.Group()
-  scene.add(group)
-  const originals:THREE.Object3D[]=[]
-  const plants:{pivot:THREE.Group; moving:boolean; phase:number; depth:number}[]=[]
-  const controller=new AbortController()
-  const loader=new GLTFLoader()
-  const windTime={value:0}
-  for(const asset of Object.values(manifests).flat()){
-    if(asset.provider!=='Poly Haven'||asset.license!=='CC0-1.0'||asset.commercialUse!==true||
-      !Object.hasOwn(placements,asset.role)||!/^\/assets\/bio-[a-z]+-[a-f0-9]{12}\.glb$/.test(asset.path)||
-      !Number.isInteger(asset.bytes)||asset.bytes<=0||asset.bytes>4_000_000)continue
-    void (async()=>{
-      try{
-        const response=await fetch(asset.path,{signal:controller.signal})
-        if(!response.ok)throw Error(`HTTP ${response.status}`)
-        const data=await response.arrayBuffer()
-        if(data.byteLength!==asset.bytes||new DataView(data).getUint32(0,true)!==0x46546c67)throw Error('Invalid GLB')
-        const {scene:model}=await loader.parseAsync(data,'')
-        if(controller.signal.aborted){release(model);return}
-        const bounds=new THREE.Box3().setFromObject(model)
-        const size=bounds.getSize(new THREE.Vector3())
-        const height=Math.max(size.x,size.y,size.z)
-        if(!Number.isFinite(height)||height<=0){release(model);return}
-        if(asset.role!=='rock'){
-          const replaced=new Set<THREE.Material>()
-          const retained=new Set<THREE.Material>()
-          model.traverse(node=>{
-            if(!(node instanceof THREE.Mesh))return
-            node.geometry.computeBoundingBox()
-            const bounds=node.geometry.boundingBox
-            const materials:THREE.Material[]=Array.isArray(node.material)?node.material:[node.material]
-            if(!bounds||bounds.max.y-bounds.min.y<.0001){materials.forEach(material=>retained.add(material));return}
-            const animated=materials.map(source=>{
-              replaced.add(source)
-              const material=source.clone()
-              const low=bounds.min.y.toFixed(6)
-              const range=(bounds.max.y-bounds.min.y).toFixed(6)
-              material.customProgramCacheKey=()=>`botanical-wind-${low}-${range}`
-              material.onBeforeCompile=shader=>{
-                shader.uniforms.botanicalTime=windTime
-                shader.vertexShader='uniform float botanicalTime;\n'+shader.vertexShader.replace(
-                  '#include <begin_vertex>',
-                  `#include <begin_vertex>
-                   vec3 origin=(modelMatrix*vec4(0.,0.,0.,1.)).xyz;
-                   float tip=clamp((position.y-${low})/${range},0.,1.);
-                   float breeze=sin(botanicalTime*.74+origin.x*2.2)+.34*sin(botanicalTime*1.19+origin.z*4.);
-                   transformed.x+=breeze*tip*tip*${range}*.028;`)
-              }
-              return material
-            })
-            node.material=Array.isArray(node.material)?animated:animated[0]
-          })
-          replaced.forEach(material=>{if(!retained.has(material))material.dispose()})
-        }
-        originals.push(model)
-        const center=bounds.getCenter(new THREE.Vector3())
-        placements[asset.role].forEach(([x,y,z,scale],index)=>{
-          const pivot=new THREE.Group()
-          const clone=model.clone(true)
-          const normalized=scale/height
-          clone.scale.multiplyScalar(normalized)
-          clone.position.sub(new THREE.Vector3(center.x,bounds.min.y,center.z).multiplyScalar(normalized))
-          pivot.add(clone)
-          pivot.position.set(x,y,z)
-          pivot.rotation.y=index*1.8
-          group.add(pivot)
-          plants.push({pivot,moving:asset.role!=='rock',phase:index*1.53+x,depth:z})
-        })
-        onReady(asset.role)
-      }catch(error){
-        if(!controller.signal.aborted)console.warn('Botanical asset fallback',asset.role,error)
+export function botanicalAssets(scene:THREE.Scene,onReady:(role:Role)=>void){
+ const group=new THREE.Group();scene.add(group)
+ const controller=new AbortController(), loader=new GLTFLoader()
+ const time={value:0},strength={value:1}
+ const resources=new Set<THREE.BufferGeometry|THREE.Material|THREE.Texture>()
+ const stats={loaded:0,animatedMeshes:0,errors:[] as string[],variants:[] as string[],requests:[] as {url:string;status:number;bytes:number}[]}
+ const specimens:{role:Role;root:THREE.Group;height:number}[]=[]
+ for(const asset of Object.values(manifests).flat()){
+  if(asset.provider!=='Poly Haven'||asset.license!=='CC0-1.0'||!asset.commercialUse||!Object.hasOwn(placements,asset.role)||!/^\/assets\/bio-[a-z]+-[a-f0-9]{12}\.glb$/.test(asset.path)||asset.bytes>4_000_000)continue
+  void(async()=>{try{
+   const response=await fetch(asset.path,{signal:controller.signal})
+   stats.requests.push({url:asset.path,status:response.status,bytes:asset.bytes})
+   if(!response.ok)throw Error(`HTTP ${response.status}: ${asset.path}`)
+   const data=await response.arrayBuffer()
+   if(data.byteLength!==asset.bytes||data.byteLength<12||new DataView(data).getUint32(0,true)!==0x46546c67)throw Error('Invalid GLB')
+   const {scene:pack}=await loader.parseAsync(data,'');pack.updateMatrixWorld(true)
+   // Poly Haven publishes specimen libraries, not a single plant. Select the
+   // tallest individual variant; never normalize the spatially spread library.
+   const candidates=pack.children.filter(child=>!child.name.includes('dead'))
+   candidates.sort((a,b)=>new THREE.Box3().setFromObject(b).getSize(new THREE.Vector3()).y-new THREE.Box3().setFromObject(a).getSize(new THREE.Vector3()).y)
+   const model=candidates[0]??pack
+   stats.variants.push(`${asset.role}: ${model.name}`)
+   const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3())
+   const span=Math.max(size.x*.65,size.y,size.z*.65)
+   if(!Number.isFinite(span)||span<=0)throw Error('Invalid model bounds')
+   const template=new THREE.Group()
+   model.traverse(node=>{
+    if(!(node instanceof THREE.Mesh))return
+    // Bake glTF node transforms: all mesh parts share one root/height instead of
+    // bending every leaflet about its own local bounding-box minimum.
+    const geometry=node.geometry.clone().applyMatrix4(node.matrixWorld)
+    geometry.translate(-center.x,-bounds.min.y,-center.z);geometry.scale(1/span,1/span,1/span)
+    resources.add(geometry);node.geometry.dispose()
+    const source:THREE.Material[]=Array.isArray(node.material)?node.material:[node.material]
+    const materials=source.map(original=>{
+     const material=original.clone();resources.add(material)
+     for(const value of Object.values(original))if(value instanceof THREE.Texture)resources.add(value)
+     if(asset.role!=='rock'){
+      material.customProgramCacheKey=()=>`anchored-wind-v3-${size.y/span}`
+      material.onBeforeCompile=shader=>{
+       shader.uniforms.windTime=time;shader.uniforms.windStrength=strength
+       shader.vertexShader='uniform float windTime;uniform float windStrength;\n'+shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+        vec3 origin=(modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
+        float h=clamp(position.y/${Math.max(size.y/span,.001).toFixed(6)},0.,1.);
+        float phase=origin.x*2.7+origin.z*3.1;
+        float gust=sin(windTime*.87+origin.x*.65);
+        float flutter=sin(windTime*1.43+phase+position.x*3.);
+        transformed.x+=windStrength*h*h*(.057*gust+.022*flutter);
+        transformed.z+=windStrength*h*h*.018*sin(windTime*.69+phase+position.z*2.);`)
       }
-    })()
-  }
-  return {
-    update(time:number,x:number,y:number){
-      windTime.value=time
-      group.position.set(-x*.18,-y*.06,0)
-      for(const {pivot,moving,phase,depth} of plants){
-        if(moving)pivot.rotation.z=Math.sin(time*.61+pivot.position.x)*.025+
-          Math.sin(time*(.70+depth*.12)+phase)*.018
-      }
-    },
-    dispose(){
-      controller.abort()
-      scene.remove(group)
-      originals.forEach(release)
-    },
-  }
+     }
+     return material
+    })
+    const mesh=new THREE.Mesh(geometry,Array.isArray(node.material)?materials:materials[0])
+    mesh.frustumCulled=false // shader displacement extends beyond the original bounds
+    template.add(mesh)
+   })
+   if(controller.signal.aborted){resources.forEach(r=>r.dispose());return}
+   const matrices=placements[asset.role].map(([x,y,z,scale],i)=>{
+    const root=new THREE.Group();root.position.set(x,y-.28,z);root.scale.setScalar(scale);root.rotation.y=i*1.8;root.updateMatrix()
+    specimens.push({role:asset.role,root,height:size.y/span*scale});return root.matrix
+   })
+   for(const child of template.children){
+    const mesh=child as THREE.Mesh
+    const batch=new THREE.InstancedMesh(mesh.geometry,mesh.material,matrices.length)
+    matrices.forEach((matrix,i)=>batch.setMatrixAt(i,matrix));batch.frustumCulled=false;batch.userData.role=asset.role;group.add(batch)
+    if(asset.role!=='rock')stats.animatedMeshes++
+   }
+   pack.traverse(node=>{if(node instanceof THREE.Mesh){node.geometry.dispose();for(const mat of Array.isArray(node.material)?node.material:[node.material])mat.dispose()}})
+   stats.loaded++;onReady(asset.role)
+  }catch(error){if(!controller.signal.aborted){stats.errors.push(`${asset.role}: ${String(error)}`);console.warn('Botanical asset unavailable',asset.role,error)}}})()
+ }
+ return {group,stats,specimens,
+  update(t:number,x:number,y:number,intensity=1){time.value=t;strength.value=intensity;group.position.set(-x*.16,-y*.04,0)},
+  dispose(){controller.abort();scene.remove(group);group.children.forEach(child=>{if(child instanceof THREE.InstancedMesh)child.dispose()});resources.forEach(r=>r.dispose())},
+ }
 }
