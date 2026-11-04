@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, HttpUrl
 
 from .media import render
@@ -37,15 +37,27 @@ async def local_only(request: Request, call_next):
 
 
 def connect():
-    db = sqlite3.connect(ROOT / "jobs.db")
-    db.execute("PRAGMA journal_mode=WAL")
+    db = sqlite3.connect(ROOT / "jobs.db", timeout=10)
     try:
         if db.execute("PRAGMA user_version").fetchone()[0] != 1:
+            db.execute("PRAGMA journal_mode=WAL")
             migrate(db)
     except Exception:
         db.close()
         raise
     return db
+
+
+@app.exception_handler(sqlite3.OperationalError)
+async def database_error(request: Request, exc: sqlite3.OperationalError):
+    code = getattr(exc, "sqlite_errorcode", 0)
+    if code & 0xff not in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
+        raise exc
+    return JSONResponse(
+        {"detail": "Cơ sở dữ liệu đang bận. Hãy thử lại."},
+        status_code=503,
+        headers={"Retry-After": "2"},
+    )
 
 
 def read(db, job):
@@ -115,7 +127,10 @@ def frontend_asset(filename: str):
 @app.get("/")
 def home():
     build = FRONTEND_DIST / "index.html"
-    return FileResponse(build if build.is_file() else Path(__file__).with_name("index.html"))
+    return FileResponse(
+        build if build.is_file() else Path(__file__).with_name("index.html"),
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/health")

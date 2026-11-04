@@ -11,8 +11,12 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+npm --prefix frontend ci
+npm --prefix frontend run build
 python -m uvicorn factory.app:app --host 127.0.0.1 --port 8000
 ```
+
+Trên Windows, sau khi cài Python dependencies, chạy `.\scripts\Start-Factory.ps1` để cài dependencies frontend, build và mở server. Nếu vừa pull mà vẫn thấy UI cũ, dừng server và build lại frontend.
 
 Mở http://127.0.0.1:8000. Chạy một worker. Cấu hình tùy chọn qua .env dựa trên .env.example. Dùng FACTORY_VOICE=mock cho kiểm thử dựng offline. Audio mock là im lặng và bị chặn tại QC.
 
