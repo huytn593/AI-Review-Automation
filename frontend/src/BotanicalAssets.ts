@@ -30,6 +30,7 @@ export function botanicalAssets(scene:THREE.Scene,onReady:(role:Asset['role'])=>
   const plants:{pivot:THREE.Group; moving:boolean; phase:number; depth:number}[]=[]
   const controller=new AbortController()
   const loader=new GLTFLoader()
+  const windTime={value:0}
   for(const asset of Object.values(manifests).flat()){
     if(asset.provider!=='Poly Haven'||asset.license!=='CC0-1.0'||asset.commercialUse!==true||
       !Object.hasOwn(placements,asset.role)||!/^\/assets\/bio-[a-z]+-[a-f0-9]{12}\.glb$/.test(asset.path)||
@@ -46,6 +47,37 @@ export function botanicalAssets(scene:THREE.Scene,onReady:(role:Asset['role'])=>
         const size=bounds.getSize(new THREE.Vector3())
         const height=Math.max(size.x,size.y,size.z)
         if(!Number.isFinite(height)||height<=0){release(model);return}
+        if(asset.role!=='rock'){
+          const replaced=new Set<THREE.Material>()
+          const retained=new Set<THREE.Material>()
+          model.traverse(node=>{
+            if(!(node instanceof THREE.Mesh))return
+            node.geometry.computeBoundingBox()
+            const bounds=node.geometry.boundingBox
+            const materials:THREE.Material[]=Array.isArray(node.material)?node.material:[node.material]
+            if(!bounds||bounds.max.y-bounds.min.y<.0001){materials.forEach(material=>retained.add(material));return}
+            const animated=materials.map(source=>{
+              replaced.add(source)
+              const material=source.clone()
+              const low=bounds.min.y.toFixed(6)
+              const range=(bounds.max.y-bounds.min.y).toFixed(6)
+              material.customProgramCacheKey=()=>`botanical-wind-${low}-${range}`
+              material.onBeforeCompile=shader=>{
+                shader.uniforms.botanicalTime=windTime
+                shader.vertexShader='uniform float botanicalTime;\n'+shader.vertexShader.replace(
+                  '#include <begin_vertex>',
+                  `#include <begin_vertex>
+                   vec3 origin=(modelMatrix*vec4(0.,0.,0.,1.)).xyz;
+                   float tip=clamp((position.y-${low})/${range},0.,1.);
+                   float breeze=sin(botanicalTime*.74+origin.x*2.2)+.34*sin(botanicalTime*1.19+origin.z*4.);
+                   transformed.x+=breeze*tip*tip*${range}*.028;`)
+              }
+              return material
+            })
+            node.material=Array.isArray(node.material)?animated:animated[0]
+          })
+          replaced.forEach(material=>{if(!retained.has(material))material.dispose()})
+        }
         originals.push(model)
         const center=bounds.getCenter(new THREE.Vector3())
         placements[asset.role].forEach(([x,y,z,scale],index)=>{
@@ -68,6 +100,7 @@ export function botanicalAssets(scene:THREE.Scene,onReady:(role:Asset['role'])=>
   }
   return {
     update(time:number,x:number,y:number){
+      windTime.value=time
       group.position.set(-x*.18,-y*.06,0)
       for(const {pivot,moving,phase,depth} of plants){
         if(moving)pivot.rotation.z=Math.sin(time*.61+pivot.position.x)*.025+

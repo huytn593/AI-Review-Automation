@@ -1,9 +1,11 @@
 import {useEffect,useRef,useState} from 'react'
 import * as THREE from 'three'
+import {botanicalAssets} from './BotanicalAssets'
 
 export default function Planet({paused}:{paused:boolean}) {
   const host=useRef<HTMLDivElement>(null)
   const inactive=useRef(paused)
+  const [assetCredit,setAssetCredit]=useState(false)
   const [fallback,setFallback]=useState(false)
   useEffect(()=>{inactive.current=paused},[paused])
   useEffect(()=>{
@@ -19,7 +21,7 @@ export default function Planet({paused}:{paused:boolean}) {
     const scene=new THREE.Scene()
     const camera=new THREE.PerspectiveCamera(35,1,.1,30)
     camera.position.set(0,0,5.8)
-    const geometry=new THREE.SphereGeometry(1.42,80,48)
+    const geometry=new THREE.SphereGeometry(1.48,80,48)
     const material=new THREE.ShaderMaterial({
       vertexShader:`
         varying vec3 localPoint;
@@ -52,13 +54,19 @@ export default function Planet({paused}:{paused:boolean}) {
           float detail=noise(p*15.);
           vec3 n=normalize(normalWorld);
           float incidence=dot(n,normalize(vec3(-.55,.75,.43)));
-          float daylight=smoothstep(-.18,.86,incidence);
+          float daylight=smoothstep(-.21,.78,incidence);
           float rim=pow(1.0-max(dot(n,normalize(cameraPosition-worldPoint)),0.0),3.3);
           vec3 surface=mix(vec3(.003,.021,.026),vec3(.09,.42,.26)*(.68+detail*.65),land);
           float veins=pow(1.0-abs(sin(terrain*39.0+detail*1.4)),14.0);
           vec3 color=surface*(.22+daylight*1.15)+vec3(.12,.53,.40)*rim*(.22+daylight)+vec3(.11,.24,.19)*veins*land*daylight;
           color=mix(color,vec3(.51,.73,.65)*(.12+.88*daylight),clouds*.44);
           color+=vec3(.48,.34,.13)*smoothstep(.82,.98,detail)*land*(1.-daylight)*.26;
+          vec3 eye=normalize(cameraPosition-worldPoint);
+          vec3 halfVector=normalize(eye+normalize(vec3(-.55,.75,.43)));
+          float oceanGlint=pow(max(dot(n,halfVector),0.),28.)*(1.-land);
+          float coast=1.-smoothstep(.006,.045,abs(terrain-.47));
+          color+=vec3(.20,.53,.43)*oceanGlint*daylight*.24;
+          color+=vec3(.30,.57,.37)*coast*daylight*(.19+detail*.18);
           gl_FragColor=vec4(color,1.0);
         }`,
     })
@@ -98,6 +106,12 @@ export default function Planet({paused}:{paused:boolean}) {
     canvas.setAttribute('aria-hidden','true')
     element.append(canvas)
     let frame=0,last=0,dirty=true,visible=true,lost=false,slowFrames=0
+    const foliage=botanicalAssets(scene,()=>{dirty=true;setAssetCredit(true)})
+    scene.add(new THREE.HemisphereLight(0xc7ffea,0x152925,1.65))
+    const meadowLight=new THREE.DirectionalLight(0x9ae9c9,1.5)
+    meadowLight.position.set(-3,4,1)
+    scene.add(meadowLight)
+    const hero=element.closest<HTMLElement>('.hero')
     let pointerX=0,pointerY=0
     const motion=matchMedia('(prefers-reduced-motion: reduce)')
     function resize(){
@@ -135,8 +149,14 @@ export default function Planet({paused}:{paused:boolean}) {
       seeds.forEach(([x,y,z],i)=>pollenPositions.setXYZ(i,x+Math.sin(sceneTime*.34+i)*.16,y+Math.sin(sceneTime*.43+i*1.7)*.13,z))
       pollenPositions.needsUpdate=true
       starMaterial.opacity=.47+Math.sin(sceneTime*.39)*.055
-      element.style.setProperty('--scene-x',`${camera.position.x*10}px`)
-      element.style.setProperty('--scene-y',`${camera.position.y*7}px`)
+      const x=camera.position.x/.5
+      const y=camera.position.y/.34
+      foliage.update(sceneTime,x,y)
+      hero?.style.setProperty('--foreground-x',`${x*11+Math.sin(sceneTime*.63)*1.7}px`)
+      hero?.style.setProperty('--foreground-y',`${y*5}px`)
+      hero?.style.setProperty('--midground-x',`${x*4}px`)
+      element.style.setProperty('--scene-x',`${x*5+Math.sin(sceneTime*.23)*19}px`)
+      element.style.setProperty('--scene-y',`${y*4+Math.sin(sceneTime*.19)*5}px`)
       camera.lookAt(0,0,0)
       renderer.render(scene,camera)
       canvas.dataset.cameraX=camera.position.x.toFixed(3)
@@ -165,11 +185,12 @@ export default function Planet({paused}:{paused:boolean}) {
       canvas.removeEventListener('webglcontextlost',lose)
       canvas.removeEventListener('webglcontextrestored',restore)
       geometry.dispose();material.dispose();stars.dispose();starMaterial.dispose()
+      foliage.dispose()
       atmosphere.dispose();pollen.dispose();pollenMaterial.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
       canvas.remove()
     }
   },[])
-  return <div ref={host} className={'planet-stage'+(fallback?' planet-fallback':'')} role="img" aria-label={fallback?'Hành tinh minh họa tĩnh':'Hành tinh 3D tương tác'}><div className="cosmic-mist"/></div>
+  return <div ref={host} className={'planet-stage'+(fallback?' planet-fallback':'')} role="img" aria-label={fallback?'Hành tinh minh họa tĩnh':'Hành tinh 3D tương tác'}><div className="cosmic-mist"/>{assetCredit&&!fallback&&<span className="planet-credit">Powered by Poly Haven</span>}</div>
 }

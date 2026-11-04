@@ -57,3 +57,9 @@ nav{background:linear-gradient(165deg,#0d1b1d,#071412 70%,#102c25)}
 .hero::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:var(--cosmos-plate) center/cover no-repeat;mask-image:linear-gradient(transparent 64%,#000 96%)}
 .hero-copy{z-index:2}
 @media(max-width:900px){.hero{grid-template-columns:1fr}.hero .planet-stage{grid-column:1;grid-row:2}.hero-copy{max-width:38rem}}
+
+/* The painted meadow stays behind the live specimens; its bottom lip wraps the stage. */
+.hero{background-position:calc(50% + var(--midground-x,0px)) center}
+.hero::before{inset:-1.5%;mask-image:linear-gradient(transparent 78%,#000 99%);transform:translate(var(--foreground-x,0px),var(--foreground-y,0px))}
+.cosmic-mist{inset:22% -12% -12%;background:radial-gradient(ellipse 63% 16% at 54% 72%,#a1d9bc41,transparent 95%),radial-gradient(ellipse 53% 16% at 38% 83%,#5caa8f3d,transparent 95%);transform:translate(var(--scene-x,0px),var(--scene-y,0px));mix-blend-mode:screen}
+.hero-copy{align-self:center;background:linear-gradient(150deg,#163c34d9,#081c1cd6 59%,#173b308c)}
