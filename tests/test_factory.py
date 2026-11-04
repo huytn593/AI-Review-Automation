@@ -11,7 +11,8 @@ from factory.media import run
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(factory, "ROOT", tmp_path)
-    return TestClient(factory.app)
+    with TestClient(factory.app) as active:
+        yield active
 
 
 def test_dedup_and_early_approval(client):
@@ -42,6 +43,11 @@ def test_real_ffmpeg_preview_blocks_missing_demo(client, monkeypatch):
     }] * 2
     assert client.put(url + "/editorial", json={"sources": sources, "scenes": scenes}).status_code == 200
     result = client.post(url + "/render").json()
+    import time
+    deadline = time.monotonic() + 90
+    while result['state'] in {'QUEUED', 'RENDERING'} and time.monotonic() < deadline:
+        time.sleep(.1)
+        result = client.get(url).json()
     assert result["state"] == "QC_FAILED", result
     assert 30 <= result["duration"] <= 90
     assert any("demo" in issue for issue in result["issues"])
@@ -58,7 +64,7 @@ def test_real_ffmpeg_preview_blocks_missing_demo(client, monkeypatch):
 def test_foundation_health_and_persistent_cancel(client):
     health = client.get("/health").json()
     assert health["status"] == "ok"
-    assert health["schema_version"] == 1
+    assert health["schema_version"] == 3
     assert health["journal_mode"] == "wal"
     job = client.post("/jobs", json={"topic": "Foundation"}).json()
     url = f"/jobs/{job['id']}"
@@ -80,7 +86,7 @@ def test_migrate_unversioned_database(tmp_path):
             db.execute("INSERT INTO jobs VALUES ('existing','topic','DISCOVERED','{}')")
         migrate(db)
         migrate(db)
-        assert db.execute("PRAGMA user_version").fetchone() == (1,)
+        assert db.execute("PRAGMA user_version").fetchone() == (3,)
         assert db.execute("SELECT id,state FROM jobs").fetchone() == ("existing", "DISCOVERED")
 
 
@@ -251,6 +257,15 @@ def test_current_render_approval_and_media_boundary(client):
     assert client.get(path + "/media/narration").headers["content-type"] == "audio/wav"
     assert client.get(path + "/media/narration?scene=-1").status_code == 404
     assert client.get(path + "/media/demo").status_code == 404
+    # Missing/incomplete artifacts cannot be approved even with a forged ready state.
+    assert client.post(path + "/approve", json=approval).status_code == 409
+    from factory.integrity import ARTIFACTS, binding
+    for name in ARTIFACTS:
+        (folder / name).write_bytes(b'isolated integrity fixture')
+    with closing(factory.connect()) as db, db:
+        current = factory.read(db, job['id'])
+        current['render_binding'] = binding(folder, current)
+        factory.write(db, job['id'], 'AWAITING_APPROVAL', current)
     assert client.post(path + "/approve", json=approval).status_code == 200
     assert client.get(path).json()["state"] == "APPROVED"
     assert client.put(path + "/editorial", json={"sources": [], "scenes": job["scenes"]}).status_code == 200

@@ -16,7 +16,7 @@ npm --prefix frontend run build
 python -m uvicorn factory.app:app --host 127.0.0.1 --port 8000
 ```
 
-Trên Windows, sau khi cài Python dependencies, chạy `.\scripts\Start-Factory.ps1` để cài dependencies frontend, build và mở server. Nếu vừa pull mà vẫn thấy UI cũ, dừng server và build lại frontend.
+Trên Windows, chạy `.\scripts\Start-Factory.ps1`. Script tạo `.venv` nếu thiếu, cài Python dependencies vào đúng môi trường, kiểm tra import, cài dependencies frontend, build và mở server. Python 3.12 và Node.js cần được cài trước. Nếu vừa pull mà vẫn thấy UI cũ, dừng server và build lại frontend.
 
 Mở http://127.0.0.1:8000. Chạy một worker. Cấu hình tùy chọn qua .env dựa trên .env.example. Dùng FACTORY_VOICE=mock cho kiểm thử dựng offline. Audio mock là im lặng và bị chặn tại QC.
 
@@ -41,14 +41,14 @@ python -m factory.capture JOB_UUID https://example.com
 python -m pytest -q
 ```
 
-Test dựng dùng FFmpeg thật và âm thanh mock. Tệp nguồn trong test là fixture, không đại diện cho kiểm chứng Ollama thực tế. Nhánh dựng hiện chạy đồng bộ và giới hạn một video tại một thời điểm. Nếu tiến trình chết giữa chừng, dừng server trước khi dùng SQLite đưa job kẹt từ RENDERING về FAILED rồi dựng lại. Nguồn và storyboard đã lưu vẫn dùng được. Thư mục workspace lưu bản dựng cũ và cần được quản lý dung lượng thủ công.
+Test dựng dùng FFmpeg thật và âm thanh mock. Tệp nguồn trong test là fixture, không đại diện cho kiểm chứng Ollama thực tế. POST render trả 202 và đưa job vào hàng đợi SQLite. Worker chạy một render tại một thời điểm. Nếu tiến trình chết, lease hết hạn sau 30 giây và job chuyển FAILED khi server hoạt động lại; bấm Render để thử lại, tối đa ba lần trước khi cần lưu lại nội dung. Không chỉnh SQLite bằng tay. Nguồn và storyboard đã lưu vẫn dùng được. Thư mục workspace lưu bản dựng cũ và cần được quản lý dung lượng thủ công.
 
-QC hiện kiểm tra cấu trúc trích dẫn, khoảng thời lượng, demo/quyền đã xác nhận, voice mock và trạng thái rà soát disclosure. Biên tập viên chịu trách nhiệm đối chiếu claim và kiểm tra clip trước khi xác nhận. Chưa có detector clipping, silence, nội dung trùng lặp theo ngữ nghĩa hoặc đánh giá license độc lập.
+QC hiện kiểm tra cấu trúc trích dẫn, khoảng thời lượng, demo/quyền đã xác nhận, voice mock và trạng thái rà soát disclosure. Biên tập viên chịu trách nhiệm đối chiếu claim và kiểm tra clip trước khi xác nhận. Có kiểm tra đoạn đen và audio gần như im lặng. Chưa có detector clipping, nội dung trùng lặp theo ngữ nghĩa hoặc đánh giá license độc lập.
 
-## Milestone tiếp theo
+## Phạm vi còn thiếu (chưa hoàn thiện toàn bộ sản phẩm)
 
-- Thu thập RSS/search API, chuẩn hóa provenance và xếp hạng Top 20 dựa trên tín hiệu có thật.
-- Thêm worker có lease, resume theo cảnh, cancel và retry theo loại lỗi. Bổ sung adapter TTS và OpenAI/Anthropic, kiểm thử có credentials.
+- Mở rộng hai feed RSS chính thức hiện có thành tìm kiếm đa nguồn, đối chiếu claim và tín hiệu nhu cầu có thật.
+- Thêm resume theo cảnh và phân loại lỗi chi tiết trên hàng đợi đã có lease/cancel/retry. Bổ sung adapter TTS và OpenAI/Anthropic, kiểm thử có credentials.
 - Thêm QC kỹ thuật và kiểm tra quyền theo từng asset, rồi kiểm thử video dài và demo sản phẩm thực tế.
 - Thêm OAuth, upload private có idempotency, lịch đăng gắn với bản đã duyệt, analytics và affiliate disclosure.
 
@@ -168,3 +168,24 @@ chọn glTF 1K, xác minh MD5 và đóng gói các dependency vào GLB. Tổng n
 sách là 12 MB, tối đa 4 MB mỗi nhóm. Manifest ghi SHA-256 và giấy phép CC0.
 Frontend hiện credit Powered by Poly Haven khi có asset được nạp.
 Nếu mạng hoặc asset lỗi, scene vẫn sử dụng hình học dự phòng.
+
+## Cập nhật độ ổn định và nguồn nghiên cứu
+
+- Trend Discovery đọc các feed chính thức OpenAI/Google AI, lưu snapshot vào `workspace/research`. Có lọc từ khóa trong feed, chưa phải công cụ tìm kiếm web tổng quát. Mọi claim mới là UNVERIFIED; điểm mới chỉ là heuristic theo ngày đăng, không phải lượng tìm kiếm.
+- Research có trạng thái claim và giải thích xác minh. QC yêu cầu claim được biên tập viên xác nhận VERIFIED kèm giải thích.
+- Settings lưu model Ollama, giọng Việt, tốc độ/âm lượng và encoder vào `workspace/settings.json`. Cấu hình được chụp cho mỗi render. Nút nghe thử sử dụng giọng thật đã lưu. Edge TTS được cài cùng requirements; eSpeak NG cần executable trên PATH.
+- Render tiếp tục khi đóng/tải lại trình duyệt. Giao diện nhớ dự án/tab và theo dõi trạng thái; thay đổi chưa lưu có cảnh báo khi đóng trang.
+- Schema v3 thêm `render_queue`, `audit` và `media_assets`. Bản duyệt cũ chưa có checksum được lưu trong lịch sử và yêu cầu dựng/duyệt lại. Trước nâng cấp database đã có, ứng dụng sao lưu SQLite bằng backup API vào `workspace/backups`. Không xóa media cũ.
+- Approval so khớp SHA-256 của MP4, bộ artifact, metadata và nội dung nghiên cứu/storyboard. Artifact bị sửa hoặc thiếu phải dựng lại. Lịch sử thao tác hiển thị trong dự án.
+- Khi dừng server đột ngột, có thể cần chờ tối đa khoảng 30 giây sau lần heartbeat cuối trước khi job được phục hồi. File tạm trong thư mục render gián đoạn chưa tự xóa; không được công bố như bản dựng hoàn tất.
+
+Chạy một server `Start-Factory.ps1` từ thư mục repo; mở http://127.0.0.1:8000.
+Xem [sổ triển khai](docs/IMPLEMENTATION_LEDGER.md) để biết yêu cầu đã kiểm tra, phần còn thiếu và bước tiếp theo. YouTube OAuth/upload và analytics chưa được triển khai; không có video nào được tự đăng.
+
+### Media và viết lại từng cảnh
+
+Trong tab **Media**, nhập MP4/WebM/WAV/MP3/PNG/JPEG (tối đa 100 MB), khai báo nguồn và giấy phép, rồi xác nhận quyền thương mại. Server kiểm tra signature và FFprobe, giữ SHA-256 và tránh trùng tệp trong cùng dự án. Media có URL phạm vi dự án; tệp hỏng hoặc quá lớn bị từ chối.
+
+Chọn **Chọn làm bằng chứng demo** trên video, nhập kịch bản kiểm thử, kết quả quan sát và URL sản phẩm. Chỉ xác nhận khi đây là bản ghi thực tế bạn đã xem. Ứng dụng tạo bản sao riêng của video để chỉnh thư viện không phá bằng chứng. Cảnh storyboard phải chọn hình ảnh **Demo** để renderer sử dụng footage.
+
+Sau khi lưu nghiên cứu/kịch bản, nút **Viết lại cảnh bằng Ollama** tạo đề xuất cho riêng cảnh đó, không tự lưu và không thay các cảnh còn lại. Kiểm tra nội dung rồi bấm Lưu. Chưa có kiểm thử live Ollama trong môi trường bàn giao.

@@ -92,25 +92,26 @@ def timestamp(seconds):
     return f"{hours:02}:{minutes:02}:{seconds:02},{ms:03}"
 
 
-def render(folder: Path, scenes, format_name, voice, demo_path=None, checkpoint=lambda: None):
+def render(folder: Path, scenes, format_name, voice, demo_path=None, checkpoint=lambda: None, settings=None):
     token = _checkpoint.set(checkpoint)
     try:
         try:
-            return _render(folder, scenes, format_name, voice, demo_path, checkpoint)
+            return _render(folder, scenes, format_name, voice, demo_path, checkpoint, settings=settings)
         except NvencFailure:
             logging.getLogger(__name__).warning("NVENC failed during encoding; retrying with libx264")
-            return _render(folder, scenes, format_name, voice, demo_path, checkpoint, force_cpu=True)
+            return _render(folder, scenes, format_name, voice, demo_path, checkpoint, force_cpu=True, settings=settings)
     finally:
         (folder / "video.partial.mp4").unlink(missing_ok=True)
         _checkpoint.reset(token)
 
 
-def _render(folder, scenes, format_name, voice, demo_path, checkpoint, force_cpu=False):
+def _render(folder, scenes, format_name, voice, demo_path, checkpoint, force_cpu=False, settings=None):
+    settings = settings or {}
     width, height = (1080, 1920) if format_name == "short" else (1920, 1080)
     if demo_path is not None and not demo_path.is_file():
         raise ValueError("Thiếu file demo")
     encoder = "libx264"
-    if not force_cpu and os.getenv("FACTORY_ENCODER", "auto") != "cpu":
+    if not force_cpu and settings.get("encoder", os.getenv("FACTORY_ENCODER", "auto")) != "cpu":
         try:
             run("ffmpeg", "-v", "error", "-f", "lavfi", "-i",
                 f"color=s={width}x{height}", "-frames:v", "1", "-pix_fmt", "yuv420p",
@@ -124,7 +125,7 @@ def _render(folder, scenes, format_name, voice, demo_path, checkpoint, force_cpu
     for index, scene in enumerate(scenes):
         checkpoint()
         wav = f"voice-{index}.wav"
-        CommandTTS(run, voice).synthesize(scene.narration, folder / wav, scene.seconds)
+        CommandTTS(run, voice, settings).synthesize(scene.narration, folder / wav, scene.seconds)
         duration = float(run("ffprobe", "-v", "error", "-show_entries",
                              "format=duration", "-of", "csv=p=0", wav, cwd=folder))
         timeline.append({**scene.model_dump(), "start": elapsed, "duration": duration})

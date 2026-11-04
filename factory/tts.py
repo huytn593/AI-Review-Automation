@@ -12,9 +12,10 @@ class TTSProvider(Protocol):
 
 
 class CommandTTS:
-    def __init__(self, run: Callable, voice: str):
+    def __init__(self, run: Callable, voice: str, settings=None):
         self.run = run
         self.voice = voice
+        self.settings = settings or {}
 
     def synthesize(self, text: str, output: Path, seconds: float) -> None:
         cwd = output.parent
@@ -22,14 +23,18 @@ class CommandTTS:
             self.run("ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
                      "anullsrc=r=48000:cl=mono", "-t", str(seconds), output.name, cwd=cwd)
             return
-        if os.getenv("FACTORY_TTS", "espeak") == "edge":
+        if self.settings.get("tts", os.getenv("FACTORY_TTS", "espeak")) == "edge":
             source = output.with_suffix(".mp3")
             command = (sys.executable, "-m", "edge_tts", "--voice", self.voice,
+                       "--rate=" + f"{self.settings.get('rate', 0):+d}%",
+                       "--volume=" + f"{self.settings.get('volume', 0):+d}%",
                        "--text", text, "--write-media", source.name)
         else:
             source = output
             command = (os.getenv("ESPEAK_BIN", "espeak-ng"), "-v", self.voice,
-                       "-w", output.name, "-b", "1", "--", text)
+                       "-w", output.name, "-b", "1",
+                       "-s", str(round(175 * (1 + self.settings.get('rate', 0) / 100))),
+                       "-a", str(round(100 * (1 + self.settings.get('volume', 0) / 100))), "--", text)
         for attempt in range(2):
             source.unlink(missing_ok=True)
             try:

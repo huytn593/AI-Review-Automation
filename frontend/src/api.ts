@@ -1,4 +1,4 @@
-export type Source = {url:string; title:string; claim:string; evidence:string; checked_at:string}
+export type Source = {url:string; title:string; claim:string; evidence:string; checked_at:string; status?:'VERIFIED'|'PARTIALLY_VERIFIED'|'CONFLICTED'|'UNVERIFIED'|'OUTDATED'; confidence_reason?:string}
 export type Scene = {narration:string; caption:string; seconds:number; visual_type:'demo'|'original_text_card'; citations:number[]}
 export type Editorial = {sources:Source[]; scenes:Scene[]; synthetic_disclosure_reviewed:boolean}
 export type Job = Editorial & {id:string; topic:string; format:'short'|'long'; state:string; verification:string; issues?:string[]; render_id?:string; technical?:{encoder:string}; demo?:unknown}

@@ -11,12 +11,17 @@ test('WebGL planet rotates, tracks the pointer and falls back on context loss',a
   page.on('pageerror',error=>errors.push(error.message))
   page.on('console',message=>{if(message.type()==='error')errors.push(message.text())})
   await page.setViewportSize({width:1366,height:768})
-  await page.goto('/')
+  await page.goto('/?motionDebug=1')
   const stage=page.getByRole('img',{name:'Hành tinh 3D tương tác'})
   const canvas=stage.locator('canvas')
   await expect(canvas).toBeVisible()
+  // Compare motion only after asynchronous model loads have settled.
+  await expect.poll(async()=>JSON.parse(await canvas.getAttribute('data-motion')||'{}').loadedAssets,{timeout:15000}).toBe(4)
+  await page.addStyleTag({content:'.motion-debug{visibility:hidden}'})
   const first=await stage.screenshot()
-  await expect.poll(async()=>(await stage.screenshot()).equals(first)).toBe(false)
+  const firstTime=JSON.parse(await canvas.getAttribute('data-motion')||'{}').time
+  await expect.poll(async()=>JSON.parse(await canvas.getAttribute('data-motion')||'{}').time,{timeout:15000}).toBeGreaterThan(firstTime+.5)
+  expect((await stage.screenshot()).equals(first)).toBe(false)
   const box=(await stage.boundingBox())!
   await page.mouse.move(box.x+box.width*.87,box.y+box.height*.25)
   const camera=(axis:string)=>async()=>Number(await canvas.getAttribute('data-camera-'+axis))
@@ -29,6 +34,7 @@ test('WebGL planet rotates, tracks the pointer and falls back on context loss',a
   await page.setViewportSize({width:1920,height:1080})
   await page.screenshot({path:info.outputPath('planet-1920.png')})
   await page.emulateMedia({reducedMotion:'reduce'})
+  await expect.poll(async()=>JSON.parse(await canvas.getAttribute('data-motion')||'{}').pauseReason).toBe('reduced motion')
   await expect.poll(async()=>{
     const still=await stage.screenshot()
     const next=await stage.screenshot()
