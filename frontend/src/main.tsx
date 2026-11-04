@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client'
 import {api,parseEditorial,type Editorial,type Job} from './api'
 import {Research,Storyboard} from './editors'
 import './style.css'
+import './living.css'
 
 const Planet=lazy(()=>import('./Planet'))
 const Video=lazy(()=>import('./Video'))
@@ -50,7 +51,13 @@ function App(){
   }
   return <div className="layout"><nav><strong>◉ AI REVIEW STUDIO</strong><a href="#overview">Overview</a><a href="#projects">Projects</a>{tabs.map(item=><a key={item} aria-current={job&&tab===item?"page":undefined} href="#studio" onClick={()=>setTab(item)}>{item}</a>)}<a href="#settings">Settings</a></nav>
     <main><header>LOCAL WORKSPACE <span>{health?'● Backend online':'○ Đang kiểm tra backend'}</span></header>
-    <div className="hero" id="overview"><div className="hero-copy"><small>CREATE · RESEARCH · RENDER</small><h1>Create smarter.<br/><em>Publish beautifully.</em></h1><p>Biến ý tưởng thành video với một không gian nghiên cứu, biên tập và dựng phim.</p><a className="cta" href="#projects">Create New Review ↗</a></div><Suspense fallback={<div className="planet-stage planet-fallback" aria-label="Đang tải hành tinh"/>}><Planet paused={busy==='Đang render…'||tab==='Video Studio'}/></Suspense></div>
+    <div className="hero" id="overview">
+      <div className="hero-topline"><span>THE LIVING CREATIVE UNIVERSE</span><a href="#studio">Explore your studio ↗</a></div>
+      <Suspense fallback={<div className="planet-stage planet-fallback" aria-label="Đang tải hành tinh"/>}><Planet paused={busy==='Đang render…'||tab==='Video Studio'}/></Suspense>
+      <div className="hero-copy"><small><i/> A SPACE FOR YOUR NEXT IDEA</small><h1>Create smarter.<br/><em>Publish beautifully.</em></h1><p>Từ một ý tưởng nhỏ, mở ra cả thế giới câu chuyện.<br/>Nghiên cứu, biên tập và dựng phim trong một không gian.</p><div className="hero-actions"><a className="cta" href="#projects">Create New Review <span>↗</span></a><a className="hero-secondary" href={job?'#studio':'#projects'} onClick={()=>setTab('Storyboard')}>Explore the workflow <span>→</span></a></div></div>
+      <div className="hero-bottom"><span>01 / THE CREATIVE LANDSCAPE</span><a href="#projects">Scroll to create ↓</a><span>RESEARCH · STORY · FILM</span></div>
+    </div>
+    <div className="workspace-intro"><div><small>YOUR CREATIVE WORKSPACE</small><h2>Great stories begin here.</h2></div><p>{jobs.length} dự án · Nghiên cứu có nguồn · Duyệt trước khi xuất bản</p></div>
     <section id="projects"><h2>Dự án</h2>{!jobs.length&&<p>Chưa có dự án. Tạo review đầu tiên để bắt đầu.</p>}<form onSubmit={create}><input aria-label="Chủ đề" name="topic" minLength={2} maxLength={100} required placeholder="Tên chủ đề"/><select aria-label="Định dạng" name="format"><option value="short">Shorts</option><option value="long">Landscape</option></select><button disabled={!!busy}>Tạo dự án</button></form>
     <label>Chọn dự án<select value={job?.id??''} disabled={!!busy} onChange={e=>{const id=e.target.value;if(!dirty||confirm('Bỏ thay đổi chưa lưu?'))void act('Đang tải dự án',async()=>select(await api<Job>('/jobs/'+id)))}}><option value="" disabled>Chọn dự án</option>{jobs.map(item=><option key={item.id} value={item.id}>{item.topic}</option>)}</select></label></section>
     <div className="feedback">{error&&<p role="alert">{error}</p>}<p role="status">{busy||notice}</p></div>

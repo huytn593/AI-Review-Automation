@@ -8,3 +8,10 @@ frontend/node_modules/
 frontend/dist/
 frontend/test-results/
 .browsers/
+
+# Raw, reproducible visual capture intermediates (compressed evidence is tracked).
+evidence/motion/
+evidence/living/*.png
+!evidence/living/foliage-*.png
+evidence/living/*.webm
+evidence/living/capture-trace.zip

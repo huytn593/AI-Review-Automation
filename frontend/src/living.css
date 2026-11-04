@@ -1,0 +1,38 @@
+/* Living Universe: a continuous landscape, with the working studio below it. */
+:root{--accent:#d5e8ce;--muted:#a8b6b2;color-scheme:dark}
+html{scroll-behavior:smooth}body{background:#091412;color:#f5f1e9}
+.layout>nav{width:188px;background:#0a1513;border-right:1px solid #c7d9c115;padding:32px 18px;gap:5px;z-index:10}
+.layout>nav strong{font-size:11px;letter-spacing:.055em;color:#d5e8ce;margin-bottom:40px;white-space:nowrap}
+.layout>nav a{font-size:12px;padding:11px 14px;border-radius:5px}
+.layout>nav a:first-of-type{color:#f5f1e9;background:#b9d8c510}
+main{margin-left:188px;padding:0;max-width:none}
+main>header{height:64px;align-items:center;padding:0 34px;font-size:10px;letter-spacing:.13em;border-color:#c7d9c115}
+header span{font-size:10px;color:#c8d6c0;letter-spacing:0}
+.hero{display:flex;align-items:center;justify-content:center;min-height:740px;height:calc(100svh - 64px);max-height:1100px;margin:0;padding:90px 30px 140px;border:0;border-radius:0;background:#102528 url('./assets/living-valley.webp') center/cover no-repeat;isolation:isolate}
+.hero::before{inset:0;z-index:0;mask-image:none;transform:none;background:linear-gradient(180deg,#06171915,#06171915 55%,#08161125 80%,#091412);pointer-events:none}
+.hero .planet-stage{position:absolute;inset:0;width:100%;height:100%;grid-area:auto;z-index:1;overflow:hidden}
+.hero-copy{grid-area:auto;z-index:2;text-align:center;width:min(100%,850px);max-width:none;padding:0;border:0;border-radius:0;background:none;box-shadow:none;backdrop-filter:none;pointer-events:none}
+.hero-copy small{display:inline-flex;gap:10px;align-items:center;font-size:9px;letter-spacing:.22em;color:#e4e7d9;border:1px solid #eff4de38;border-radius:50px;padding:6px 13px;background:#12262270}
+.hero-copy small i{width:5px;height:5px;border-radius:50%;background:#d2e9b3;box-shadow:0 0 10px #d2e9b3}
+.hero-copy h1{font:normal clamp(52px,5.5vw,94px)/.99 Georgia,'Times New Roman',serif;letter-spacing:-.055em;margin:26px 0;color:#fff9ed;text-shadow:0 3px 35px #001b1f55}
+.hero-copy h1 em{color:#f1d7dc;font-weight:400}
+.hero-copy p{max-width:none;color:#e0e5de;font-size:12px;line-height:1.9;margin:24px auto 28px;text-shadow:0 2px 12px #001b1f}
+.hero-actions{display:flex;justify-content:center;align-items:center;gap:26px;pointer-events:auto}
+.hero .cta{display:flex;gap:28px;align-items:center;background:#e9eddb;color:#182a22;border:1px solid #fff9;border-radius:50px;font-size:12px;font-weight:550;padding:12px 20px;box-shadow:0 6px 30px #09141240}
+.hero .cta:hover{background:#fff9eb;box-shadow:0 6px 30px #09141240}
+.hero-secondary{color:#f0e9e1;text-decoration:none;font-size:12px}.hero-secondary span{margin-left:12px}
+.hero-topline,.hero-bottom{position:absolute;left:36px;right:36px;display:flex;justify-content:space-between;align-items:center;z-index:3;font-size:9px;letter-spacing:.14em;color:#e8ece0b3}
+.hero-topline{top:28px}.hero-bottom{bottom:28px}.hero-topline a,.hero-bottom a{color:#e8ece0;text-decoration:none;font-size:10px;letter-spacing:.02em}
+.planet-credit{right:24px;bottom:64px;background:#09141266;font-size:9px;color:#c4cec4}
+.cosmic-mist{display:none}
+.planet-fallback:before{width:100px;inset:18% 12% auto auto;transform:none;opacity:.5;background:radial-gradient(circle at 30% 25%,#e6e7d3,#53665b 45%,#1a3130 78%);box-shadow:0 0 24px #d8e1df22}
+.workspace-intro{margin:60px 5% 30px;display:flex;align-items:end;justify-content:space-between;gap:24px}.workspace-intro small{font-size:9px;letter-spacing:.18em}.workspace-intro h2{font:36px/1.2 Georgia,serif;margin:12px 0 0}.workspace-intro p{color:var(--muted);font-size:11px}
+main>section{margin:20px 5%;padding:30px;background:#101e1b;border:1px solid #d8e5d417;border-radius:12px}
+main>section h2{font:26px Georgia,serif;margin-top:0}#projects>form{display:flex;gap:10px;flex-wrap:wrap}#projects>form>input{flex:1;min-width:180px}#projects>form button{background:#d5e8ce;color:#14241d;margin:0;padding-inline:25px}
+input,select,textarea,button{background:#0b1714;border-color:#d8e5d424;border-radius:6px}input,select,textarea{padding:12px 14px}.tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #d8e5d41c;padding-bottom:18px;margin-bottom:24px}.tabs button{border:0;background:transparent;color:var(--muted)}.tabs button[aria-pressed=true]{background:#d5e8ce;color:#14241d}
+fieldset{border-color:#d8e5d424}fieldset fieldset{background:#0d1916}.feedback{margin:0 5%}.video-grid{gap:20px}.video-grid aside{background:#0b1714;padding:20px}.video-grid h3{font-size:12px;color:#d5e8ce;font-weight:500}.screen{min-height:380px;background:#050c0a;border:1px solid #d8e5d41c}.timeline{gap:6px;padding:12px 0}.timeline button{background:#20382f;border-color:#d5e8ce24;min-height:65px}.video-grid details{padding:14px 0;border-bottom:1px solid #d8e5d41c}#settings{margin-bottom:50px}
+.motion-isolate .hero-topline,.motion-isolate .hero-bottom{visibility:hidden}
+@media(min-width:1800px){.hero-copy{transform:translateY(-30px)}}
+@media(max-width:1100px){.layout>nav{width:160px;padding-inline:10px}main{margin-left:160px}.hero{min-height:640px}.hero-copy h1{font-size:64px}.hero-bottom span:last-child{display:none}.hero-topline{left:24px;right:24px}.workspace-intro{align-items:start;flex-direction:column;gap:0}}
+@media(max-width:650px){.layout>nav{position:relative;inset:auto;width:100%;flex-direction:row;align-items:center;padding:12px;gap:4px}.layout>nav strong{margin:0 14px 0 0}.layout>nav a{white-space:nowrap}.layout>nav a:first-of-type{background:none}main{margin:0}main>header{height:48px;padding:0 18px;font-size:8px;flex-direction:row}.hero{height:calc(100svh - 110px);min-height:620px;padding:100px 20px 140px;background-position:48% center}.hero-copy h1{font-size:clamp(43px,10vw,62px)}.hero-copy p{font-size:11px}.hero-topline{top:22px;font-size:8px}.hero-topline a{display:none}.hero-actions{gap:18px;flex-direction:column}.hero-bottom{left:20px;right:20px;font-size:7px}.hero-bottom a{font-size:9px}.planet-credit{bottom:56px}.workspace-intro{margin-top:40px}.workspace-intro h2{font-size:30px}main>section{padding:20px}.screen{min-height:230px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.hero,button{animation:none;transition:none}}

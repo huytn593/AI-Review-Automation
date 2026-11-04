@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react'
 import * as THREE from 'three'
 import cloudUrl from './assets/emerald-clouds.webp'
-import surfaceUrl from './assets/emerald-surface.webp'
+import surfaceUrl from './assets/living-surface.webp'
 import {botanicalAssets} from './BotanicalAssets'
 
 export default function Planet({paused}:{paused:boolean}) {
@@ -35,17 +35,18 @@ export default function Planet({paused}:{paused:boolean}) {
     const surface=new THREE.TextureLoader().load(surfaceUrl,()=>{dirty=true})
     surface.colorSpace=THREE.SRGBColorSpace
     surface.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy())
-    const material=new THREE.MeshStandardMaterial({map:surface,color:0xb6e4d3,roughness:.64,metalness:.04,
-      bumpMap:surface,bumpScale:.018,emissive:0x17322b,emissiveMap:surface,emissiveIntensity:.14})
+    const material=new THREE.MeshStandardMaterial({map:surface,color:0xd3dbda,roughness:.86,metalness:0,
+      bumpMap:surface,bumpScale:.003,emissive:0x17322b,emissiveMap:surface,emissiveIntensity:.14})
     const globe=new THREE.Mesh(geometry,material)
     globe.rotation.z=.22
-    globe.position.y=.12
+    globe.scale.setScalar(.27)
+    globe.position.set(2.5,1.25,-1.8)
     scene.add(globe)
     const cloudMap=new THREE.TextureLoader().load(cloudUrl,()=>{dirty=true})
     cloudMap.wrapS=THREE.RepeatWrapping
-    const cloudMaterial=new THREE.MeshStandardMaterial({color:0xb6e2d2,alphaMap:cloudMap,transparent:true,opacity:.48,depthWrite:false,roughness:1})
+    const cloudMaterial=new THREE.MeshStandardMaterial({color:0xe5d8ea,alphaMap:cloudMap,transparent:true,opacity:.62,depthWrite:false,roughness:1})
     const clouds=new THREE.Mesh(geometry,cloudMaterial)
-    clouds.scale.setScalar(1.012);clouds.position.copy(globe.position);clouds.rotation.z=.22
+    clouds.scale.setScalar(.276);clouds.position.copy(globe.position);clouds.rotation.z=.22
     scene.add(clouds)
     const fogTime={value:0}
     const fogMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,
@@ -54,9 +55,9 @@ export default function Planet({paused}:{paused:boolean}) {
       fragmentShader:`uniform sampler2D map;uniform float time;varying vec2 vUv;
         void main(){float edge=smoothstep(0.,.14,vUv.x)*smoothstep(1.,.86,vUv.x)*sin(vUv.y*3.14159);
         float veil=texture2D(map,vec2(vUv.x+time*.009,vUv.y*.7+.1)).r;
-        gl_FragColor=vec4(.48,.72,.63,veil*edge*.58);}`})
+        gl_FragColor=vec4(.65,.63,.72,veil*edge*.28);}`})
     const fogGeometry=new THREE.PlaneGeometry(5.8,1.1)
-    const fog=new THREE.Mesh(fogGeometry,fogMaterial);fog.position.set(0,-1.08,1.38);scene.add(fog)
+    const fog=new THREE.Mesh(fogGeometry,fogMaterial);fog.position.set(0,-.96,-.2);scene.add(fog)
     const positions=new Float32Array(140*3)
     for(let i=0;i<positions.length;i+=3){
       positions[i]=Math.sin(i*41.7)*5
@@ -80,21 +81,38 @@ export default function Planet({paused}:{paused:boolean}) {
       fragmentShader:`varying vec3 vNormal; varying vec3 vEye;
         void main(){vec3 n=normalize(vNormal);float limb=pow(1.-abs(dot(n,normalize(vEye))),4.);
           float key=smoothstep(-.65,.95,dot(n,normalize(vec3(-.55,.75,.32))));
-          gl_FragColor=vec4(.24,.9,.65,limb*key*.55);}`,
+          gl_FragColor=vec4(.67,.73,.83,limb*key*.38);}`,
     })
     const shell=new THREE.Mesh(geometry,atmosphere)
-    shell.scale.setScalar(1.025)
+    shell.scale.setScalar(.282)
     shell.position.copy(globe.position)
     scene.add(shell)
+    // Separate falling petals: original curved geometry, not pixels from the plate.
+    const petalGeometry=new THREE.SphereGeometry(.035,8,5,0,Math.PI);
+    petalGeometry.scale(1,1.8,.22)
+    const petalMaterial=new THREE.MeshStandardMaterial({color:0xe8afc6,roughness:.9,side:THREE.DoubleSide})
+    const petals=new THREE.InstancedMesh(petalGeometry,petalMaterial,26)
+    petals.frustumCulled=false;scene.add(petals)
+    const petalDummy=new THREE.Object3D()
+    function updatePetals(t:number){
+      for(let i=0;i<26;i++){
+        const seed=i*2.39996
+        petalDummy.position.set(Math.sin(seed)*3.7+Math.sin(t*.24+seed)*.18,1.9-((t*.055+i*.173)%3.8),Math.cos(seed)*.8)
+        petalDummy.rotation.set(t*.24+seed,seed+t*.18,Math.sin(t*.32+seed)*.7)
+        petalDummy.scale.setScalar(.22+(i%4)*.09);petalDummy.updateMatrix();petals.setMatrixAt(i,petalDummy.matrix)
+      }
+      petals.instanceMatrix.needsUpdate=true
+    }
+    updatePetals(0)
     let sceneTime=0
     const canvas=renderer.domElement
     canvas.setAttribute('aria-hidden','true')
     element.append(canvas)
     let frame=0,last=0,dirty=true,visible=true,lost=false,slowFrames=0
     const foliage=botanicalAssets(scene,()=>{dirty=true;setAssetCredit(true)})
-    scene.add(new THREE.HemisphereLight(0xb7e7dc,0x101d27,.85))
-    const meadowLight=new THREE.DirectionalLight(0xd1ffdf,4.6)
-    meadowLight.position.set(-3,4,1)
+    scene.add(new THREE.HemisphereLight(0xe2d1e4,0x182525,1.2))
+    const meadowLight=new THREE.DirectionalLight(0xffe9cb,3.2)
+    meadowLight.position.set(-3,4,3)
     scene.add(meadowLight)
     if(isolate){scene.children.forEach(child=>{if(child!==foliage.group&&!(child instanceof THREE.Light))child.visible=false})}
     const viewFrustum=new THREE.Frustum()
@@ -121,6 +139,11 @@ export default function Planet({paused}:{paused:boolean}) {
       if(!width||!height)return
       renderer.setSize(width,height,false)
       camera.aspect=width/height
+      foliage.fitWidth(Math.min(1,camera.aspect/1.6))
+      const celestialScale=camera.aspect<.8?.65:1
+      globe.scale.setScalar(.27*celestialScale);clouds.scale.setScalar(.276*celestialScale);shell.scale.setScalar(.282*celestialScale)
+      globe.position.x=Math.min(2.5,camera.aspect*1.35)
+      clouds.position.copy(globe.position);shell.position.copy(globe.position)
       camera.updateProjectionMatrix()
       dirty=true
     }
@@ -148,6 +171,7 @@ export default function Planet({paused}:{paused:boolean}) {
       sceneTime+=Math.min(elapsed,1000)/1000
       clouds.rotation.y+=dt*.033
       fogTime.value=sceneTime
+      updatePetals(sceneTime)
       camera.position.x+=(pointerX*.5-camera.position.x)*Math.min(1,dt*5)
       camera.position.y+=(pointerY*.34-camera.position.y)*Math.min(1,dt*5)
       // No whole-scene rocking: roots stay anchored while leaf vertices bend.
@@ -195,6 +219,7 @@ export default function Planet({paused}:{paused:boolean}) {
       geometry.dispose();material.dispose();surface.dispose();stars.dispose();starMaterial.dispose()
       foliage.dispose()
       atmosphere.dispose();pollen.dispose();pollenMaterial.dispose()
+      petals.dispose();petalGeometry.dispose();petalMaterial.dispose()
       cloudMap.dispose();cloudMaterial.dispose();fogGeometry.dispose();fogMaterial.dispose()
       renderer.dispose()
       renderer.forceContextLoss()

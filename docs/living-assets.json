@@ -1,0 +1,32 @@
+{
+  "generated": [
+    {
+      "path": "frontend/src/assets/living-valley.webp",
+      "source": "Original built-in image generation, 2026-11-04",
+      "license": "Generated project asset; not CC0 and not copied from reference websites",
+      "attributionRequired": false,
+      "bytes": 271672,
+      "sha256": "ccc699c559d5a0387ee7921b96573f875a1b3e1277c939f63c97c67de7ef9865"
+    },
+    {
+      "path": "frontend/src/assets/living-surface.webp",
+      "source": "Original built-in image generation, 2026-11-04",
+      "license": "Generated project asset; not CC0 and not copied from reference websites",
+      "attributionRequired": false,
+      "bytes": 280854,
+      "sha256": "1736ae1d49a237b4f2bfcf65ff24708a6a482d20c54923044e1c022faa577aef"
+    },
+    {
+      "path": "frontend/src/assets/cosmos-sprig.webp",
+      "source": "Original built-in image generation, 2026-11-04",
+      "license": "Generated project asset; not CC0 and not copied from reference websites",
+      "attributionRequired": false,
+      "bytes": 30744,
+      "sha256": "845cd2378de23337097d78fe4cd1ad92a7cc3f81cb017a8544faa2dae59cd274"
+    }
+  ],
+  "existingModels": "frontend/src/botanical-manifest.json (fern, grass, rock; dandelion no longer loaded)",
+  "existingClouds": "docs/planet-texture-provenance.json",
+  "licenseChecked": "https://polyhaven.com/license, 2026-11-04: assets CC0; attribution optional",
+  "referenceMedia": "User recordings and images used only for analysis; not redistributed in production."
+}

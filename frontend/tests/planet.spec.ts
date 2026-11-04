@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test'
+import {PNG} from 'pngjs'
 
 test.use({reducedMotion:'no-preference',video:'on'})
 
@@ -30,7 +31,20 @@ test('WebGL planet rotates, tracks the pointer and falls back on context loss',a
   await page.emulateMedia({reducedMotion:'reduce'})
   await expect.poll(async()=>{
     const still=await stage.screenshot()
-    return (await stage.screenshot()).equals(still)
+    const next=await stage.screenshot()
+    // Chromium's compositor can round a few background color channels by 1/255.
+    // Do not allow displacement or a perceptible color change: max delta 1,
+    // and fewer than 0.01% of channels may differ. Isolated plants also have
+    // a separate byte-identical reduced-motion test in vegetation.spec.ts.
+    const a=PNG.sync.read(still),b=PNG.sync.read(next)
+    if(a.width!==b.width||a.height!==b.height)return false
+    let changed=0
+    for(let i=0;i<a.data.length;i++){
+      const delta=Math.abs(a.data[i]-b.data[i])
+      if(delta>1)return false
+      if(delta)changed++
+    }
+    return changed<a.data.length*.0001
   }).toBe(true)
   expect(errors).toEqual([])
   const lost=await canvas.evaluate(element=>{
