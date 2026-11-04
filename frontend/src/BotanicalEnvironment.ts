@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import {botanicalDetails} from './BotanicalDetails'
+import {botanicalAssets} from './BotanicalAssets'
 
 /** Procedural foliage. Each depth band batches its leaves and blossoms. */
-export function botanicalEnvironment(scene: THREE.Scene) {
+export function botanicalEnvironment(scene: THREE.Scene, onAssetReady:()=>void) {
   const blade = new THREE.BufferGeometry()
   blade.setAttribute('position', new THREE.Float32BufferAttribute([
     0,0,0, -.13,.38,.025, 0,.47,.1, .13,.38,.025, .19,1,0,
@@ -90,9 +91,15 @@ export function botanicalEnvironment(scene: THREE.Scene) {
   const originalTip=new THREE.Vector3()
   const positions=dustGeometry.getAttribute('position')
   const details=botanicalDetails(scene)
+  const imported=botanicalAssets(scene,role=>{
+    onAssetReady()
+    details.hide(role)
+    if(role==="flower")for(const {blooms} of layers)blooms.visible=false
+  })
   return {
     update(time:number,pointerX:number,pointerY:number){
       details.update(time,pointerX,pointerY)
+      imported.update(time,pointerX,pointerY)
       layers.forEach(({group,stems,blooms,plants,bloomCount,petals},index)=>{
         group.rotation.z=Math.sin(time*.62+index*1.7)*.008
         group.position.x=-pointerX*(.025+index*.085)
@@ -128,6 +135,7 @@ export function botanicalEnvironment(scene: THREE.Scene) {
     },
     dispose(){
       details.dispose()
+      imported.dispose()
       for(const {group,stems,blooms} of layers){scene.remove(group);stems.dispose();blooms.dispose()}
       scene.remove(dust,light,ambient,haze)
       hazeGeometry.dispose();hazeMaterial.dispose()

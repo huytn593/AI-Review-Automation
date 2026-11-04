@@ -155,3 +155,12 @@ Pop-Location
 
 Playwright tự mở backend test trên port 8012. Ảnh chụp ở hai viewport,
 video WebM và trace lỗi nằm trong `frontend/test-results`.
+
+### Tải asset thực vật từ Poly Haven
+
+Từ thư mục gốc, chạy `python scripts/fetch_botanical_assets.py` trước khi
+`npm run build` trong frontend. Script tìm tối đa năm ứng viên mỗi nhóm,
+chọn glTF 1K, xác minh MD5 và đóng gói các dependency vào GLB. Tổng ngân
+sách là 12 MB, tối đa 4 MB mỗi nhóm. Manifest ghi SHA-256 và giấy phép CC0.
+Frontend hiện credit Powered by Poly Haven khi có asset được nạp.
+Nếu mạng hoặc asset lỗi, scene vẫn sử dụng hình học dự phòng.

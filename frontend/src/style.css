@@ -44,3 +44,4 @@ nav a[aria-current=page]{background:#70d7c41c;color:var(--accent)}
 .hero .cta{background:linear-gradient(120deg,#a5f5d6,#52ba98);box-shadow:0 0 24px #54c7a448;border:1px solid #b9ffe3a1}
 .hero .cta:hover{box-shadow:0 0 30px #54c7a481}
 nav{background:linear-gradient(165deg,#0d1b1d,#071412 70%,#102c25)}
+.planet-credit{position:absolute;z-index:1;right:12px;bottom:10px;color:#cee1d7;background:#071412c9;border-radius:6px;padding:3px 8px;font-size:11px;pointer-events:none}

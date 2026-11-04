@@ -5,6 +5,7 @@ import {botanicalEnvironment} from './BotanicalEnvironment'
 export default function Planet({paused}:{paused:boolean}) {
   const host=useRef<HTMLDivElement>(null)
   const inactive=useRef(paused)
+  const [assetCredit,setAssetCredit]=useState(false)
   const [fallback,setFallback]=useState(false)
   useEffect(()=>{inactive.current=paused},[paused])
   useEffect(()=>{
@@ -74,7 +75,7 @@ export default function Planet({paused}:{paused:boolean}) {
     stars.setAttribute('position',new THREE.BufferAttribute(positions,3))
     const starMaterial=new THREE.PointsMaterial({color:0x9ce5ce,size:.025,transparent:true,opacity:.55})
     scene.add(new THREE.Points(stars,starMaterial))
-    const botanicals=botanicalEnvironment(scene)
+    const botanicals=botanicalEnvironment(scene,()=>{dirty=true;setAssetCredit(true)})
     let sceneTime=0
     const canvas=renderer.domElement
     canvas.setAttribute('aria-hidden','true')
@@ -148,5 +149,5 @@ export default function Planet({paused}:{paused:boolean}) {
       canvas.remove()
     }
   },[])
-  return <div ref={host} className={'planet-stage'+(fallback?' planet-fallback':'')} role="img" aria-label={fallback?'Hành tinh minh họa tĩnh':'Hành tinh 3D tương tác'}/>
+  return <div ref={host} className={'planet-stage'+(fallback?' planet-fallback':'')} role="img" aria-label={fallback?'Hành tinh minh họa tĩnh':'Hành tinh 3D tương tác'}>{assetCredit&&<span className="planet-credit">Powered by Poly Haven</span>}</div>
 }

@@ -82,6 +82,10 @@ export function botanicalDetails(scene:THREE.Scene){
         plant.rotation.y=Math.sin(i*2.1)*.75+Math.sin(time*.44+i)*.045
       })
     },
+    hide(role:string){
+      if(role==="fern")plants.slice(0,6).forEach(plant=>plant.visible=false)
+      if(role==="rock")banks.visible=false
+    },
     dispose(){
       scene.remove(garden)
       banks.dispose()
